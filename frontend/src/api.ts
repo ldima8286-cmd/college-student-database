@@ -1,21 +1,9 @@
-import axios from 'axios';
 import { Student } from './types';
 
-// Добавляем заглушку для данных, если бэкенд недоступен
-const USE_MOCK_DATA = true; // Включаем тестовые данные
+const USE_MOCK_DATA = true;
 
-const api = axios.create({ baseURL: '/api' });
-
-export const getStudents = async () => {
-  if (USE_MOCK_DATA) {
-    // Возвращаем тестовые данные вместо запроса к бэкенду
-    return { data: mockStudents };
-  }
-  return api.get('/students');
-};
-
-// Тестовые данные для демонстрации
-const mockStudents: Student[] = [
+// Хранилище студентов в памяти (для мок-режима)
+let mockStudentsStore: Student[] = [
   {
     id: '1',
     fullName: 'Иванов Иван Иванович',
@@ -35,46 +23,73 @@ const mockStudents: Student[] = [
     attendance: 87,
     performance: 4.2,
     academicDebt: true
+  },
+  {
+    id: '3',
+    fullName: 'Сидоров Алексей Владимирович',
+    course: 1,
+    group: 'ЭВМ-11',
+    specialty: 'ЭВМ и системы',
+    attendance: 72,
+    performance: 3.5,
+    academicDebt: false
   }
 ];
 
-// Остальные функции тоже оборачиваем в мок-режим
+const delay = (ms: number = 300) => new Promise(resolve => setTimeout(resolve, ms));
+
+// GET /students
+export const getStudents = async () => {
+  if (USE_MOCK_DATA) {
+    await delay();
+    return { data: [...mockStudentsStore] };
+  }
+};
+
 export const createStudent = async (student: Student) => {
   if (USE_MOCK_DATA) {
-    console.log('Mock: создан студент', student);
+    await delay();
+    mockStudentsStore.push({ ...student });
     return { data: student };
   }
-  return api.post('/students', student);
 };
 
 export const updateStudent = async (id: string, student: Student) => {
   if (USE_MOCK_DATA) {
-    console.log('Mock: обновлён студент', id, student);
+    await delay();
+    const index = mockStudentsStore.findIndex(s => s.id === id);
+    if (index !== -1) {
+      mockStudentsStore[index] = { ...student, id };
+    }
     return { data: student };
   }
-  return api.put(`/students/${id}`, student);
 };
 
+// DELETE /students/:id
 export const deleteStudent = async (id: string) => {
   if (USE_MOCK_DATA) {
-    console.log('Mock: удалён студент', id);
+    await delay();
+    mockStudentsStore = mockStudentsStore.filter(s => s.id !== id);
     return { data: {} };
   }
-  return api.delete(`/students/${id}`);
 };
 
 export const toggleDebt = async (id: string) => {
   if (USE_MOCK_DATA) {
-    console.log('Mock: переключён долг у студента', id);
+    await delay();
+    const student = mockStudentsStore.find(s => s.id === id);
+    if (student) {
+      student.academicDebt = !student.academicDebt;
+    }
     return { data: {} };
   }
-  return api.patch(`/students/${id}/toggle-debt`);
 };
 
 export const deleteAllStudents = async () => {
   if (USE_MOCK_DATA) {
-    console.log('Mock: удалены все студенты');
+    await delay();
+    mockStudentsStore = [];
     return { data: {} };
   }
-  return api.delete('/students');
+
 };
