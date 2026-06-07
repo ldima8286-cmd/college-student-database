@@ -14,16 +14,21 @@ const App: React.FC = () => {
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const loadStudents = async () => {
-    try {
-      const res = await getStudents();
+const loadStudents = async () => {
+  try {
+    const res = await getStudents();
+    if (res && res.data) {
       setStudents(res.data);
-    } catch (err) {
-      console.error('Failed to load students', err);
-    } finally {
-      setLoading(false);
+    } else {
+      setStudents([]);
     }
-  };
+  } catch (err) {
+    console.error('Failed to load students', err);
+    setStudents([]);
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     loadStudents();
