@@ -2,7 +2,7 @@
 
 Дипломный проект — веб-приложение для учёта студентов колледжа с возможностью добавления, редактирования, удаления записей, управления академическими задолженностями, поиска и фильтрации.
 
-**🔗 Публичная демо-версия:** https://ldima8286.github.io/college-student-database
+**🔗 Публичная демо-версия:**[ https://ldima8286.github.io/college-student-database](https://ldima8286-cmd.github.io/college-student-database/)
 
 ---
 
