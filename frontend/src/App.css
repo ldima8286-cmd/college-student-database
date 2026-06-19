@@ -201,3 +201,241 @@ input, select {
   padding: 8px 16px;
   cursor: pointer;
 }
+
+/* ============================================================
+   СТРАНИЦА ЛОГОВ
+   ============================================================ */
+
+.logs-page {
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.page-header h1 {
+  margin: 0;
+  font-size: 1.8rem;
+}
+
+.header-actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* Фильтры */
+.logs-filters {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-group label {
+  font-weight: 500;
+  color: var(--gray);
+}
+
+.filter-group select {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+/* Статистика логов */
+.logs-stats {
+  margin-bottom: 16px;
+  color: var(--gray);
+  font-size: 0.95rem;
+}
+
+.logs-stats strong {
+  color: var(--text);
+}
+
+/* Таблица */
+.logs-table-container {
+  background: var(--surface);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--card-shadow);
+  overflow-x: auto;
+}
+
+.logs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.logs-table thead {
+  background: var(--bg);
+  border-bottom: 2px solid var(--border);
+}
+
+.logs-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.logs-table td {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.logs-table tbody tr:hover {
+  background: var(--bg);
+}
+
+.logs-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Ячейки */
+.log-time {
+  white-space: nowrap;
+  font-size: 0.85rem;
+  color: var(--gray);
+}
+
+.log-user {
+  font-weight: 500;
+}
+
+.log-details {
+  max-width: 300px;
+  word-break: break-word;
+}
+
+.log-ip {
+  font-family: monospace;
+  font-size: 0.85rem;
+  color: var(--gray);
+}
+
+/* Бейджи действий */
+.badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge-success {
+  background: #d4edda;
+  color: #155724;
+}
+
+.badge-danger {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.badge-primary {
+  background: #cce5ff;
+  color: #004085;
+}
+
+.badge-warning {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.badge-purple {
+  background: #e8d5f5;
+  color: #6c1b8a;
+}
+
+.badge-dark {
+  background: #d6d8db;
+  color: #383d41;
+}
+
+.badge-secondary {
+  background: #e2e3e5;
+  color: #383d41;
+}
+
+/* Пустое состояние */
+.empty-state {
+  text-align: center;
+  padding: 40px;
+  color: var(--gray);
+  font-size: 1.1rem;
+}
+
+/* Адаптив для планшетов */
+@media (max-width: 768px) {
+  .logs-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .filter-group {
+    flex-wrap: wrap;
+  }
+  
+  .logs-table th,
+  .logs-table td {
+    padding: 8px 12px;
+    font-size: 0.8rem;
+  }
+  
+  .log-details {
+    max-width: 150px;
+  }
+  
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* Адаптив для телефонов */
+@media (max-width: 480px) {
+  .logs-table {
+    font-size: 0.75rem;
+  }
+  
+  .logs-table th,
+  .logs-table td {
+    padding: 6px 8px;
+  }
+  
+  .badge {
+    font-size: 0.65rem;
+    padding: 2px 8px;
+  }
+  
+  .log-time {
+    font-size: 0.7rem;
+  }
+  
+  .log-ip {
+    font-size: 0.7rem;
+  }
+}
