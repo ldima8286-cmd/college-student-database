@@ -1,15 +1,23 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { getDb, getAllStudents, getStudentById, createStudent, updateStudent, deleteStudent, toggleDebt, deleteAllStudents, getUserByUsername, createUser, deleteUser, getAllUsers } from './db.js';
-import { generateToken, verifyToken } from './auth.js';
-import { logRequest, logAnonymous, getLogs, getLogsByUser } from './logger.js';
+import { generateToken, verifyToken, UserPayload } from './auth.js';
+import { logAction, logRequest, logAnonymous, getLogs, getLogsByUser } from './logger.js';
 
 export const router = Router();
+
+// ============================================================
+//  РАСШИРЯЕМ ТИП Request ДЛЯ ПОЛЬЗОВАТЕЛЯ
+// ============================================================
+
+interface AuthRequest extends Request {
+  user: UserPayload;
+}
 
 // ============================================================
 //  АВТОРИЗАЦИЯ
 // ============================================================
 
-router.post('/auth/login', async (req, res) => {
+router.post('/auth/login', async (req: Request, res: Response) => {
   const { username, password } = req.body;
   const db = await getDb();
   
@@ -19,7 +27,6 @@ router.post('/auth/login', async (req, res) => {
     return res.status(401).json({ error: 'Неверный логин или пароль' });
   }
 
-  // Для GH Pages
   if (password !== user.password) {
     await logAnonymous(req, username, 'LOGIN_FAILED', 'Неверный пароль');
     return res.status(401).json({ error: 'Неверный логин или пароль' });
@@ -33,7 +40,6 @@ router.post('/auth/login', async (req, res) => {
     groupFilter: user.groupFilter
   });
 
-  // Логируем успешный вход
   await logAction({
     userId: user.id,
     username: user.username,
@@ -59,38 +65,40 @@ router.post('/auth/login', async (req, res) => {
 //  МИДЛВЭРЫ
 // ============================================================
 
-const checkAuth = (req: any, res: any, next: any) => {
+const checkAuth = (req: Request, res: Response, next: NextFunction): void => {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) {
-    return res.status(401).json({ error: 'Требуется авторизация' });
+    res.status(401).json({ error: 'Требуется авторизация' });
+    return;
   }
 
   const user = verifyToken(token);
   if (!user) {
-    return res.status(401).json({ error: 'Неверный токен' });
+    res.status(401).json({ error: 'Неверный токен' });
+    return;
   }
 
-  req.user = user;
+  (req as AuthRequest).user = user;
   next();
 };
 
-const checkAdmin = (req: any, res: any, next: any) => {
+const checkAdmin = (req: AuthRequest, res: Response, next: NextFunction): void => {
   if (req.user.role !== 'admin') {
-    return res.status(403).json({ error: 'Доступ запрещён. Только для администратора' });
+    res.status(403).json({ error: 'Доступ запрещён. Только для администратора' });
+    return;
   }
   next();
 };
 
 // ============================================================
-//  СТУДЕНТЫ (с логированием)
+//  СТУДЕНТЫ
 // ============================================================
 
-router.get('/students', checkAuth, async (req, res) => {
+router.get('/students', checkAuth, async (req: AuthRequest, res: Response) => {
   const db = await getDb();
   let query = 'SELECT * FROM students';
   const params: any[] = [];
   
-  // Если преподаватель — показываем только его группу
   if (req.user.role === 'teacher' && req.user.groupFilter) {
     query += ' WHERE `group` = ?';
     params.push(req.user.groupFilter);
@@ -101,7 +109,7 @@ router.get('/students', checkAuth, async (req, res) => {
   res.json(students);
 });
 
-router.post('/students', checkAuth, async (req, res) => {
+router.post('/students', checkAuth, async (req: AuthRequest, res: Response) => {
   const student = req.body;
   const db = await getDb();
   
@@ -124,7 +132,7 @@ router.post('/students', checkAuth, async (req, res) => {
   res.status(201).json(student);
 });
 
-router.put('/students/:id', checkAuth, async (req, res) => {
+router.put('/students/:id', checkAuth, async (req: AuthRequest, res: Response) => {
   const id = req.params.id;
   const student = req.body;
   const db = await getDb();
@@ -134,7 +142,6 @@ router.put('/students/:id', checkAuth, async (req, res) => {
     return res.status(404).json({ error: 'Студент не найден' });
   }
 
-  // Преподаватель может редактировать только свою группу
   if (req.user.role === 'teacher' && req.user.groupFilter && oldStudent.group !== req.user.groupFilter) {
     return res.status(403).json({ error: 'Доступ запрещён: не ваша группа' });
   }
@@ -159,18 +166,13 @@ router.put('/students/:id', checkAuth, async (req, res) => {
   res.json(student);
 });
 
-router.delete('/students/:id', checkAuth, async (req, res) => {
+router.delete('/students/:id', checkAuth, checkAdmin, async (req: AuthRequest, res: Response) => {
   const id = req.params.id;
   const db = await getDb();
   
   const student = await db.get('SELECT * FROM students WHERE id = ?', id);
   if (!student) {
     return res.status(404).json({ error: 'Студент не найден' });
-  }
-
-  // Преподаватель не может удалять студентов
-  if (req.user.role === 'teacher') {
-    return res.status(403).json({ error: 'Доступ запрещён: только администратор может удалять' });
   }
 
   await db.run('DELETE FROM students WHERE id = ?', id);
@@ -179,7 +181,7 @@ router.delete('/students/:id', checkAuth, async (req, res) => {
   res.status(204).send();
 });
 
-router.patch('/students/:id/toggle-debt', checkAuth, async (req, res) => {
+router.patch('/students/:id/toggle-debt', checkAuth, async (req: AuthRequest, res: Response) => {
   const id = req.params.id;
   const db = await getDb();
   
@@ -188,7 +190,6 @@ router.patch('/students/:id/toggle-debt', checkAuth, async (req, res) => {
     return res.status(404).json({ error: 'Студент не найден' });
   }
 
-  // Преподаватель может работать только со своей группой
   if (req.user.role === 'teacher' && req.user.groupFilter && student.group !== req.user.groupFilter) {
     return res.status(403).json({ error: 'Доступ запрещён: не ваша группа' });
   }
@@ -208,7 +209,7 @@ router.patch('/students/:id/toggle-debt', checkAuth, async (req, res) => {
   res.status(200).json({ success: true });
 });
 
-router.delete('/students', checkAuth, checkAdmin, async (req, res) => {
+router.delete('/students', checkAuth, checkAdmin, async (req: AuthRequest, res: Response) => {
   const db = await getDb();
   await db.run('DELETE FROM students');
   
@@ -220,13 +221,13 @@ router.delete('/students', checkAuth, checkAdmin, async (req, res) => {
 //  ЛОГИ (только для админа)
 // ============================================================
 
-router.get('/admin/logs', checkAuth, checkAdmin, async (req, res) => {
+router.get('/admin/logs', checkAuth, checkAdmin, async (req: AuthRequest, res: Response) => {
   const limit = parseInt(req.query.limit as string) || 100;
   const logs = await getLogs(limit);
   res.json(logs);
 });
 
-router.get('/admin/logs/user/:userId', checkAuth, checkAdmin, async (req, res) => {
+router.get('/admin/logs/user/:userId', checkAuth, checkAdmin, async (req: AuthRequest, res: Response) => {
   const limit = parseInt(req.query.limit as string) || 50;
   const logs = await getLogsByUser(req.params.userId, limit);
   res.json(logs);
@@ -236,15 +237,14 @@ router.get('/admin/logs/user/:userId', checkAuth, checkAdmin, async (req, res) =
 //  ПОЛЬЗОВАТЕЛИ (только для админа)
 // ============================================================
 
-router.get('/admin/users', checkAuth, checkAdmin, async (req, res) => {
+router.get('/admin/users', checkAuth, checkAdmin, async (req: AuthRequest, res: Response) => {
   const users = await getAllUsers();
   res.json(users);
 });
 
-router.post('/admin/users', checkAuth, checkAdmin, async (req, res) => {
+router.post('/admin/users', checkAuth, checkAdmin, async (req: AuthRequest, res: Response) => {
   const { username, password, role, fullName, groupFilter } = req.body;
   
-  // Проверяем, не существует ли уже пользователь
   const existing = await getUserByUsername(username);
   if (existing) {
     return res.status(400).json({ error: 'Пользователь с таким логином уже существует' });
@@ -253,7 +253,7 @@ router.post('/admin/users', checkAuth, checkAdmin, async (req, res) => {
   await createUser({
     id: Date.now().toString(),
     username,
-    password, // Временно без хеширования
+    password,
     role,
     fullName,
     groupFilter
@@ -263,10 +263,9 @@ router.post('/admin/users', checkAuth, checkAdmin, async (req, res) => {
   res.status(201).json({ message: 'Пользователь создан' });
 });
 
-router.delete('/admin/users/:id', checkAuth, checkAdmin, async (req, res) => {
+router.delete('/admin/users/:id', checkAuth, checkAdmin, async (req: AuthRequest, res: Response) => {
   const userId = req.params.id;
   
-  // Не даём удалить самого себя
   if (userId === req.user.id) {
     return res.status(400).json({ error: 'Нельзя удалить самого себя' });
   }

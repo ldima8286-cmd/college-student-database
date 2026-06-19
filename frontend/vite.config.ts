@@ -3,9 +3,13 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  base: '/college-student-database/', // важно! название репозитория
   server: {
-    port: 3000
-    // удаляем proxy — он не нужен для статики
+    port: 3000,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true
+      }
+    }
   }
 });

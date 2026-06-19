@@ -1,5 +1,5 @@
 import { Request } from 'express';
-import { addLog, getUserByUsername } from './db.js';
+import { addLog } from './db.js';
 
 export interface LogEntry {
   userId: string;
