@@ -1,0 +1,33 @@
+import { pgTable, uuid, text, integer, real, boolean, timestamp, serial, jsonb, check } from 'drizzle-orm/pg-core';
+import { type InferSelectModel, type InferInsertModel } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
+
+export const students = pgTable('students', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  fullName: text('full_name').notNull(),
+  course: integer('course').notNull(),
+  group: text('group').notNull(),
+  specialty: text('specialty').notNull(),
+  attendance: integer('attendance').notNull().default(100),
+  performance: real('performance').notNull().default(4.0),
+  academicDebt: boolean('academic_debt').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  check('students_course_check', sql`${t.course} >= 1 AND ${t.course} <= 6`),
+  check('students_attendance_check', sql`${t.attendance} >= 0 AND ${t.attendance} <= 100`),
+  check('students_performance_check', sql`${t.performance} >= 0 AND ${t.performance} <= 5`),
+]);
+
+export const auditLog = pgTable('audit_log', {
+  id: serial('id').primaryKey(),
+  action: text('action').notNull(),
+  entity: text('entity').notNull(),
+  entityId: text('entity_id'),
+  userId: text('user_id'),
+  details: jsonb('details'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type Student = InferSelectModel<typeof students>;
+export type NewStudent = InferInsertModel<typeof students>;

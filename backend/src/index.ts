@@ -1,38 +1,32 @@
-import 'dotenv/config';
+import { env } from './env.js';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { router } from './routes.js';
-import { getDb } from './db.js';
+import { setupSwagger } from './swagger.js';
 import { logger } from './logger.js';
 
 const app = express();
-const PORT = parseInt(process.env.PORT || '5000');
-const NODE_ENV = process.env.NODE_ENV || 'development';
-const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:3000';
 
-// Security
 app.use(helmet({
-  contentSecurityPolicy: NODE_ENV === 'production' ? undefined : false,
+  contentSecurityPolicy: env.NODE_ENV === 'production' ? undefined : false,
 }));
 
 app.use(cors({
-  origin: CORS_ORIGIN.split(','),
+  origin: env.CORS_ORIGIN.split(','),
   credentials: true,
 }));
 
-// Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: NODE_ENV === 'production' ? 100 : 1000,
+  max: 100,
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, error: 'Слишком много запросов, попробуйте позже' },
 });
 app.use('/api', limiter);
 
-// Auth rate limit (stricter)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
@@ -40,10 +34,8 @@ const authLimiter = rateLimit({
 });
 app.use('/api/auth/login', authLimiter);
 
-// Body parsing
 app.use(express.json({ limit: '10mb' }));
 
-// Request logging
 app.use((req, res, next) => {
   const start = Date.now();
   res.on('finish', () => {
@@ -56,30 +48,24 @@ app.use((req, res, next) => {
   next();
 });
 
-// Routes
+setupSwagger(app);
+
 app.use('/api', router);
 
-// Error handler
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   logger.error('Unhandled error:', err);
   res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
 });
 
-// Start
 async function start() {
   try {
-    // Ensure logs directory
     const fs = await import('fs');
     if (!fs.existsSync('logs')) fs.mkdirSync('logs');
 
-    await getDb();
-    logger.info('Database initialized');
-
-    const server = app.listen(PORT, () => {
-      logger.info(`Server running on http://localhost:${PORT} [${NODE_ENV}]`);
+    const server = app.listen(env.PORT, () => {
+      logger.info(`Server running on http://localhost:${env.PORT} [${env.NODE_ENV}]`);
     });
 
-    // Graceful shutdown
     const shutdown = (signal: string) => {
       logger.info(`${signal} received, shutting down...`);
       server.close(() => {

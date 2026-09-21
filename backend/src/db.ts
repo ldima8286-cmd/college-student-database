@@ -1,135 +1,108 @@
-import sqlite3 from 'sqlite3';
-import { open } from 'sqlite';
-import { v4 as uuidv4 } from 'uuid';
-import { Student, StudentStats } from './types.js';
+import postgres from 'postgres';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import { eq, sql, like, or, and, count, avg, desc, asc } from 'drizzle-orm';
+import { students, auditLog, type Student } from './schema.js';
+import { env } from './env.js';
 
-let db: any = null;
+const client = postgres(env.DATABASE_URL);
+export const db = drizzle(client);
 
-export async function getDb() {
-  if (!db) {
-    db = await open({
-      filename: './database.sqlite',
-      driver: sqlite3.Database
-    });
-
-    await db.exec(`
-      CREATE TABLE IF NOT EXISTS students (
-        id TEXT PRIMARY KEY,
-        fullName TEXT NOT NULL,
-        course INTEGER NOT NULL CHECK(course BETWEEN 1 AND 6),
-        "group" TEXT NOT NULL,
-        specialty TEXT NOT NULL,
-        attendance INTEGER NOT NULL DEFAULT 100 CHECK(attendance BETWEEN 0 AND 100),
-        performance REAL NOT NULL DEFAULT 4.0 CHECK(performance BETWEEN 0 AND 5),
-        academicDebt INTEGER NOT NULL DEFAULT 0,
-        createdAt TEXT NOT NULL DEFAULT (datetime('now')),
-        updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
-      )
-    `);
-
-    await db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_students_fullName ON students(fullName);
-      CREATE INDEX IF NOT EXISTS idx_students_group ON students("group");
-      CREATE INDEX IF NOT EXISTS idx_students_specialty ON students(specialty);
-      CREATE INDEX IF NOT EXISTS idx_students_course ON students(course);
-      CREATE INDEX IF NOT EXISTS idx_students_academicDebt ON students(academicDebt);
-    `);
-  }
-  return db;
-}
-
-function rowToStudent(row: any): Student {
-  return {
-    ...row,
-    academicDebt: row.academicDebt === 1,
-  };
-}
+type SortOrder = 'asc' | 'desc';
 
 export async function getAllStudents(
   search?: string,
   page: number = 1,
   limit: number = 50,
   sortBy: string = 'fullName',
-  sortOrder: 'asc' | 'desc' = 'asc',
+  sortOrder: SortOrder = 'asc',
   filterDebt?: boolean,
   filterCourse?: number
 ): Promise<{ students: Student[]; total: number }> {
-  const db = await getDb();
-
   const allowedSorts = ['fullName', 'course', 'group', 'specialty', 'attendance', 'performance', 'createdAt'];
   const safeSortBy = allowedSorts.includes(sortBy) ? sortBy : 'fullName';
-  const safeSortOrder = sortOrder === 'desc' ? 'DESC' : 'ASC';
+  const orderFn = sortOrder === 'desc' ? desc : asc;
 
-  let whereClauses: string[] = [];
-  let params: any[] = [];
+  const conditions: ReturnType<typeof eq>[] = [];
 
   if (search) {
-    whereClauses.push(`(fullName LIKE ? OR "group" LIKE ? OR specialty LIKE ?)`);
     const term = `%${search}%`;
-    params.push(term, term, term);
+    conditions.push(or(
+      like(students.fullName, term),
+      like(students.group, term),
+      like(students.specialty, term)
+    )!);
   }
 
   if (filterDebt !== undefined) {
-    whereClauses.push(`academicDebt = ?`);
-    params.push(filterDebt ? 1 : 0);
+    conditions.push(eq(students.academicDebt, filterDebt));
   }
 
   if (filterCourse !== undefined) {
-    whereClauses.push(`course = ?`);
-    params.push(filterCourse);
+    conditions.push(eq(students.course, filterCourse));
   }
 
-  const whereStr = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-  const countResult = await db.get(`SELECT COUNT(*) as count FROM students ${whereStr}`, ...params);
-  const total = countResult.count;
+  const countResult = await db
+    .select({ count: count() })
+    .from(students)
+    .where(whereClause);
+
+  const total = Number(countResult[0]?.count ?? 0);
 
   const offset = (page - 1) * limit;
-  const col = safeSortBy === 'group' ? '"group"' : safeSortBy;
-  const rows = await db.all(
-    `SELECT * FROM students ${whereStr} ORDER BY ${col} COLLATE NOCASE ${safeSortOrder} LIMIT ? OFFSET ?`,
-    ...params,
-    limit,
-    offset
-  );
 
-  return {
-    students: rows.map(rowToStudent),
-    total,
-  };
+  const rows = await db
+    .select()
+    .from(students)
+    .where(whereClause)
+    .orderBy(
+      safeSortBy === 'fullName' ? orderFn(students.fullName) :
+      safeSortBy === 'course' ? orderFn(students.course) :
+      safeSortBy === 'group' ? orderFn(students.group) :
+      safeSortBy === 'specialty' ? orderFn(students.specialty) :
+      safeSortBy === 'attendance' ? orderFn(students.attendance) :
+      safeSortBy === 'performance' ? orderFn(students.performance) :
+      orderFn(students.createdAt)
+    )
+    .limit(limit)
+    .offset(offset);
+
+  return { students: rows as Student[], total };
 }
 
 export async function getStudentById(id: string): Promise<Student | undefined> {
-  const db = await getDb();
-  const row = await db.get('SELECT * FROM students WHERE id = ?', id);
-  return row ? rowToStudent(row) : undefined;
+  const rows = await db.select().from(students).where(eq(students.id, id));
+  return rows[0] as Student | undefined;
 }
 
 export async function createStudent(data: Omit<Student, 'id' | 'createdAt' | 'updatedAt'>): Promise<Student> {
-  const db = await getDb();
-  const id = uuidv4();
-  const now = new Date().toISOString();
+  const id = crypto.randomUUID();
+  const now = new Date();
 
-  await db.run(
-    `INSERT INTO students (id, fullName, course, "group", specialty, attendance, performance, academicDebt, createdAt, updatedAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    id,
-    data.fullName,
-    data.course,
-    data.group,
-    data.specialty,
-    data.attendance,
-    data.performance,
-    data.academicDebt ? 1 : 0,
-    now,
-    now
-  );
+  const inserted = await db
+    .insert(students)
+    .values({
+      id,
+      fullName: data.fullName,
+      course: data.course,
+      group: data.group,
+      specialty: data.specialty,
+      attendance: data.attendance,
+      performance: data.performance,
+      academicDebt: data.academicDebt,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .returning();
 
-  return (await getStudentById(id))!;
+  return inserted[0] as Student;
 }
 
-export async function updateStudent(id: string, data: Partial<Omit<Student, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Student | null> {
-  const db = await getDb();
+export async function updateStudent(
+  id: string,
+  data: Partial<Omit<Student, 'id' | 'createdAt' | 'updatedAt'>>
+): Promise<Student | null> {
   const existing = await getStudentById(id);
   if (!existing) return null;
 
@@ -141,101 +114,119 @@ export async function updateStudent(id: string, data: Partial<Omit<Student, 'id'
     attendance: data.attendance ?? existing.attendance,
     performance: data.performance ?? existing.performance,
     academicDebt: data.academicDebt ?? existing.academicDebt,
+    updatedAt: new Date(),
   };
 
-  const now = new Date().toISOString();
+  const rows = await db
+    .update(students)
+    .set(updated)
+    .where(eq(students.id, id))
+    .returning();
 
-  await db.run(
-    `UPDATE students SET
-      fullName = ?, course = ?, "group" = ?, specialty = ?,
-      attendance = ?, performance = ?, academicDebt = ?, updatedAt = ?
-     WHERE id = ?`,
-    updated.fullName,
-    updated.course,
-    updated.group,
-    updated.specialty,
-    updated.attendance,
-    updated.performance,
-    updated.academicDebt ? 1 : 0,
-    now,
-    id
-  );
-
-  return (await getStudentById(id))!;
+  return (rows[0] as Student) ?? null;
 }
 
 export async function deleteStudent(id: string): Promise<boolean> {
-  const db = await getDb();
-  const result = await db.run('DELETE FROM students WHERE id = ?', id);
-  return (result.changes ?? 0) > 0;
+  const rows = await db.delete(students).where(eq(students.id, id)).returning();
+  return rows.length > 0;
 }
 
 export async function toggleDebt(id: string): Promise<Student | null> {
-  const db = await getDb();
-  const student = await getStudentById(id);
-  if (!student) return null;
+  const existing = await getStudentById(id);
+  if (!existing) return null;
 
-  const now = new Date().toISOString();
-  await db.run(
-    'UPDATE students SET academicDebt = ?, updatedAt = ? WHERE id = ?',
-    student.academicDebt ? 0 : 1,
-    now,
-    id
-  );
+  const rows = await db
+    .update(students)
+    .set({ academicDebt: !existing.academicDebt, updatedAt: new Date() })
+    .where(eq(students.id, id))
+    .returning();
 
-  return (await getStudentById(id))!;
+  return (rows[0] as Student) ?? null;
 }
 
 export async function deleteAllStudents(): Promise<number> {
-  const db = await getDb();
-  const result = await db.run('DELETE FROM students');
-  return result.changes ?? 0;
+  const rows = await db.delete(students).returning();
+  return rows.length;
 }
 
-export async function getStats(): Promise<StudentStats> {
-  const db = await getDb();
+export async function getStats() {
+  const totalResult = await db.select({ count: count() }).from(students);
+  const total = Number(totalResult[0]?.count ?? 0);
 
-  const totalResult = await db.get('SELECT COUNT(*) as count FROM students');
-  const debtResult = await db.get('SELECT COUNT(*) as count FROM students WHERE academicDebt = 1');
-  const avgResult = await db.get('SELECT AVG(attendance) as avgAtt, AVG(performance) as avgPerf FROM students');
+  const debtResult = await db
+    .select({ count: count() })
+    .from(students)
+    .where(eq(students.academicDebt, true));
+  const withDebt = Number(debtResult[0]?.count ?? 0);
 
-  const courseRows = await db.all('SELECT course, COUNT(*) as count FROM students GROUP BY course');
-  const specialtyRows = await db.all('SELECT specialty, COUNT(*) as count FROM students GROUP BY specialty');
+  const avgResult = await db
+    .select({
+      avgAttendance: avg(students.attendance),
+      avgPerformance: avg(students.performance),
+    })
+    .from(students);
+
+  const courseRows = await db
+    .select({ course: students.course, count: count() })
+    .from(students)
+    .groupBy(students.course);
 
   const byCourse: Record<number, number> = {};
-  courseRows.forEach((r: any) => { byCourse[r.course] = r.count; });
+  for (const row of courseRows) {
+    byCourse[row.course] = Number(row.count);
+  }
+
+  const specialtyRows = await db
+    .select({ specialty: students.specialty, count: count() })
+    .from(students)
+    .groupBy(students.specialty);
 
   const bySpecialty: Record<string, number> = {};
-  specialtyRows.forEach((r: any) => { bySpecialty[r.specialty] = r.count; });
+  for (const row of specialtyRows) {
+    bySpecialty[row.specialty] = Number(row.count);
+  }
 
   return {
-    total: totalResult.count,
-    withDebt: debtResult.count,
-    avgAttendance: Math.round(avgResult.avgAtt ?? 0),
-    avgPerformance: Number((avgResult.avgPerf ?? 0).toFixed(2)),
+    total,
+    withDebt,
+    avgAttendance: Math.round(Number(avgResult[0]?.avgAttendance ?? 0)),
+    avgPerformance: Number(Number(avgResult[0]?.avgPerformance ?? 0).toFixed(2)),
     byCourse,
     bySpecialty,
   };
 }
 
-export async function getStudentsBySpecialty(): Promise<{ specialty: string; count: number; avgPerformance: number; avgAttendance: number }[]> {
-  const db = await getDb();
-  return db.all(`
-    SELECT specialty, COUNT(*) as count, ROUND(AVG(performance), 2) as avgPerformance, ROUND(AVG(attendance)) as avgAttendance
-    FROM students GROUP BY specialty ORDER BY count DESC
-  `);
+export async function getStudentsBySpecialty() {
+  return db
+    .select({
+      specialty: students.specialty,
+      count: count(),
+      avgPerformance: sql<number>`ROUND(AVG(${students.performance}), 2)`,
+      avgAttendance: sql<number>`ROUND(AVG(${students.attendance}))`,
+    })
+    .from(students)
+    .groupBy(students.specialty)
+    .orderBy(desc(count()));
 }
 
-export async function getStudentsByCourse(): Promise<{ course: number; count: number; withDebt: number }[]> {
-  const db = await getDb();
-  return db.all(`
-    SELECT course, COUNT(*) as count, SUM(academicDebt) as withDebt
-    FROM students GROUP BY course ORDER BY course
-  `);
+export async function getStudentsByCourse() {
+  return db
+    .select({
+      course: students.course,
+      count: count(),
+      withDebt: sql<number>`SUM(CASE WHEN ${students.academicDebt} THEN 1 ELSE 0 END)`,
+    })
+    .from(students)
+    .groupBy(students.course)
+    .orderBy(students.course);
 }
 
 export async function getRecentStudents(limit: number = 5): Promise<Student[]> {
-  const db = await getDb();
-  const rows = await db.all('SELECT * FROM students ORDER BY createdAt DESC LIMIT ?', limit);
-  return rows.map(rowToStudent);
+  const rows = await db
+    .select()
+    .from(students)
+    .orderBy(desc(students.createdAt))
+    .limit(limit);
+
+  return rows as Student[];
 }

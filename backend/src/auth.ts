@@ -1,109 +1,62 @@
 import { Request, Response, NextFunction } from 'express';
-import crypto from 'crypto';
-
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
-const USER_PASSWORD = process.env.USER_PASSWORD || 'user123';
+import jwt from 'jsonwebtoken';
+import { env } from './env.js';
 
 export type Role = 'admin' | 'user';
 
-interface Session {
-  createdAt: number;
-  ip: string;
+interface TokenPayload {
   role: Role;
+  iat: number;
 }
 
-const sessions = new Map<string, Session>();
-const SESSION_TTL = 24 * 60 * 60 * 1000;
-
-export function login(req: Request, res: Response) {
-  const { password, role } = req.body;
-  const requestedRole: Role = role === 'admin' ? 'admin' : 'user';
-
-  if (!password) {
-    return res.status(400).json({ success: false, error: 'Введите пароль' });
-  }
-
-  const expectedPassword = requestedRole === 'admin' ? ADMIN_PASSWORD : USER_PASSWORD;
-
-  if (password !== expectedPassword) {
-    return res.status(401).json({ success: false, error: 'Неверный пароль' });
-  }
-
-  const token = crypto.randomUUID();
-  sessions.set(token, {
-    createdAt: Date.now(),
-    ip: req.ip || 'unknown',
-    role: requestedRole,
-  });
-
-  cleanupSessions();
-
-  res.json({ success: true, data: { token, role: requestedRole } });
-}
-
-export function logout(req: Request, res: Response) {
-  const token = req.headers.authorization?.replace('Bearer ', '');
-  if (token) sessions.delete(token);
-  res.json({ success: true });
-}
-
-function getSession(req: Request): Session | null {
-  const token = req.headers.authorization?.replace('Bearer ', '');
-  if (!token) return null;
-
-  const session = sessions.get(token);
-  if (!session) return null;
-
-  if (Date.now() - session.createdAt > SESSION_TTL) {
-    sessions.delete(token);
-    return null;
-  }
-
-  return session;
-}
-
-export function requireAuth(req: Request, res: Response, next: NextFunction) {
-  const session = getSession(req);
-  if (!session) {
-    return res.status(401).json({ success: false, error: 'Необходима авторизация' });
-  }
-  (req as any).session = session;
-  next();
-}
-
-export function requireAdmin(req: Request, res: Response, next: NextFunction) {
-  const session = getSession(req);
-  if (!session) {
-    return res.status(401).json({ success: false, error: 'Необходима авторизация' });
-  }
-  if (session.role !== 'admin') {
-    return res.status(403).json({ success: false, error: 'Недостаточно прав' });
-  }
-  (req as any).session = session;
-  next();
-}
-
-export function getAuthInfo(req: Request) {
-  const session = getSession(req);
-  return session ? { role: session.role, authenticated: true } : { role: null, authenticated: false };
-}
-
-function cleanupSessions() {
-  const now = Date.now();
-  for (const [token, session] of sessions.entries()) {
-    if (now - session.createdAt > SESSION_TTL) {
-      sessions.delete(token);
+declare global {
+  namespace Express {
+    interface Request {
+      auth?: TokenPayload;
     }
   }
 }
 
-export function getActiveSessions() {
-  cleanupSessions();
-  let admins = 0;
-  let users = 0;
-  for (const session of sessions.values()) {
-    if (session.role === 'admin') admins++;
-    else users++;
+export function login(password: string, role: Role): { token: string; role: Role } | null {
+  const expectedPassword = role === 'admin' ? env.ADMIN_PASSWORD : env.USER_PASSWORD;
+
+  if (password !== expectedPassword) return null;
+
+  const payload: TokenPayload = { role, iat: Math.floor(Date.now() / 1000) };
+  const token = jwt.sign(payload, env.JWT_SECRET, { expiresIn: '24h' });
+
+  return { token, role };
+}
+
+export function requireAuth(req: Request, res: Response, next: NextFunction): void {
+  const header = req.headers.authorization;
+  if (!header?.startsWith('Bearer ')) {
+    res.status(401).json({ success: false, error: 'Необходима авторизация' });
+    return;
   }
-  return { total: sessions.size, admins, users };
+
+  const token = header.slice(7);
+  try {
+    const decoded = jwt.verify(token, env.JWT_SECRET) as TokenPayload;
+    req.auth = decoded;
+    next();
+  } catch {
+    res.status(401).json({ success: false, error: 'Неверный или истёкший токен' });
+  }
+}
+
+export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
+  requireAuth(req, res, () => {
+    if (req.auth?.role !== 'admin') {
+      res.status(403).json({ success: false, error: 'Недостаточно прав' });
+      return;
+    }
+    next();
+  });
+}
+
+export function getAuthInfo(req: Request): { role: Role | null; authenticated: boolean } {
+  return req.auth
+    ? { role: req.auth.role, authenticated: true }
+    : { role: null, authenticated: false };
 }
