@@ -20,9 +20,8 @@ export interface StudentStats {
   bySpecialty: Record<string, number>;
 }
 
-export interface PaginatedResponse {
-  success: boolean;
-  data: Student[];
+export interface PaginatedResponse<T> {
+  data: T[];
   total: number;
   page: number;
   limit: number;
@@ -34,7 +33,3 @@ export interface ApiResponse<T> {
   data?: T;
   error?: string;
 }
-
-export type SortField = 'fullName' | 'course' | 'group' | 'specialty' | 'attendance' | 'performance' | 'createdAt';
-export type SortOrder = 'asc' | 'desc';
-export type ViewMode = 'table' | 'cards';

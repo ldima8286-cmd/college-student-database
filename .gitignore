@@ -15,4 +15,15 @@ database.sqlite
 # Логи и окружение
 *.log
 .env
-.DS_Store.DS_Store 
+.env.local
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temp
+tmp/
+temp/
