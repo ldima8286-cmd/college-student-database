@@ -10,6 +10,8 @@ import { toast } from 'react-hot-toast';
 import StudentTable from '../components/StudentTable';
 import StudentCards from '../components/StudentCards';
 import StatsPanel from '../components/StatsPanel';
+import ThemeToggle from '../components/ThemeToggle';
+import ImportExport from '../components/ImportExport';
 
 export default function Dashboard() {
   const [students, setStudents] = useState<Student[]>([]);
@@ -97,6 +99,7 @@ export default function Dashboard() {
               </span>
             </div>
             <div className="flex items-center gap-2">
+              <ThemeToggle />
               {isUserAdmin && (
                 <Link to="/admin" className="btn btn-primary text-sm">
                   Управление
@@ -113,6 +116,25 @@ export default function Dashboard() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <StatsPanel stats={stats} />
+
+        <div className="mb-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <ImportExport onImportComplete={loadData} />
+          <div className="card">
+            <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-3">Курс</h3>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={() => { setFilterCourse(undefined); setPage(1); }}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${filterCourse === undefined ? 'bg-primary-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
+                Все
+              </button>
+              {[1, 2, 3, 4, 5, 6].map(c => (
+                <button key={c} onClick={() => { setFilterCourse(c); setPage(1); }}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${filterCourse === c ? 'bg-primary-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
+                  {c}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
 
         <div className="mb-6">
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">

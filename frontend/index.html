@@ -18,6 +18,14 @@
     <meta name="twitter:description" content="Система учёта студентов колледжа" />
     <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
     <title>База данных учащихся колледжа</title>
+    <script>
+      (function() {
+        var t = localStorage.getItem('theme');
+        if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
   </head>
   <body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen antialiased">
     <div id="root"></div>

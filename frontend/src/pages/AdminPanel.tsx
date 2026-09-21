@@ -13,6 +13,8 @@ import StudentForm from '../components/StudentForm';
 import StudentTable from '../components/StudentTable';
 import StudentCards from '../components/StudentCards';
 import ConfirmDialog from '../components/ConfirmDialog';
+import ThemeToggle from '../components/ThemeToggle';
+import ImportExport from '../components/ImportExport';
 
 export default function AdminPanel() {
   const [students, setStudents] = useState<Student[]>([]);
@@ -133,6 +135,7 @@ export default function AdminPanel() {
               <h1 className="text-lg font-bold text-gray-900 dark:text-white">Админ-панель</h1>
             </div>
             <div className="flex items-center gap-2">
+              <ThemeToggle />
               <Link to="/" className="btn btn-ghost text-sm flex items-center gap-1">
                 <Home className="w-4 h-4" /> <span className="hidden sm:inline">Сайт</span>
               </Link>
@@ -200,6 +203,7 @@ export default function AdminPanel() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            <ImportExport onImportComplete={loadData} />
             <select value={filterCourse ?? ''} onChange={(e) => { setFilterCourse(e.target.value ? Number(e.target.value) : undefined); setPage(1); }} className="input w-auto">
               <option value="">Все курсы</option>
               {[1, 2, 3, 4, 5, 6].map((c) => <option key={c} value={c}>{c} курс</option>)}
