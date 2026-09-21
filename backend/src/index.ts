@@ -21,9 +21,10 @@ app.use(cors({
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 200,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.url === '/api/health' || req.url === '/favicon.ico',
   message: { success: false, error: 'Слишком много запросов, попробуйте позже' },
 });
 app.use('/api', limiter);
@@ -34,6 +35,12 @@ const authLimiter = rateLimit({
   message: { success: false, error: 'Слишком много попыток входа' },
 });
 app.use('/api/auth/login', authLimiter);
+
+app.get('/favicon.ico', (_req, res) => {
+  res.setHeader('Content-Type', 'image/svg+xml');
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.send(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🎓</text></svg>`);
+});
 
 app.use(express.json({ limit: '10mb' }));
 
