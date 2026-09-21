@@ -1,11 +1,12 @@
 import { cleanEnv, str, port, makeValidator } from 'envalid';
 
-const url = makeValidator((v) => {
-  if (!v) throw new Error('DATABASE_URL is required');
+const dbUrl = makeValidator((v) => {
+  if (!v) return 'sqlite:./database.sqlite';
+  if (v.startsWith('sqlite:')) return v;
   try {
     new URL(v);
   } catch {
-    throw new Error('DATABASE_URL must be a valid connection string');
+    throw new Error('DATABASE_URL must be a valid PostgreSQL URL or sqlite:./path');
   }
   return v;
 });
@@ -13,7 +14,7 @@ const url = makeValidator((v) => {
 export const env = cleanEnv(process.env, {
   PORT: port({ default: 5000 }),
   NODE_ENV: str({ choices: ['development', 'production', 'test'], default: 'development' }),
-  DATABASE_URL: url({ default: 'postgresql://postgres:postgres@localhost:5432/student_db' }),
+  DATABASE_URL: dbUrl({ default: 'sqlite:./database.sqlite' }),
   JWT_SECRET: str({ default: 'dev-secret-change-in-production' }),
   ADMIN_PASSWORD: str({ default: 'admin123' }),
   USER_PASSWORD: str({ default: 'user123' }),

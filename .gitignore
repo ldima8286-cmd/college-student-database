@@ -10,7 +10,9 @@ backend/dist/
 
 # База данных
 *.sqlite
-database.sqlite
+*.sqlite-shm
+*.sqlite-wal
+database.sqlite*
 
 # Логи и окружение
 *.log

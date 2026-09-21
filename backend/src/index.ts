@@ -6,6 +6,7 @@ import rateLimit from 'express-rate-limit';
 import { router } from './routes.js';
 import { setupSwagger } from './swagger.js';
 import { logger } from './logger.js';
+import { initDb } from './db.js';
 
 const app = express();
 
@@ -61,6 +62,9 @@ async function start() {
   try {
     const fs = await import('fs');
     if (!fs.existsSync('logs')) fs.mkdirSync('logs');
+
+    await initDb();
+    logger.info('Database connected');
 
     const server = app.listen(env.PORT, () => {
       logger.info(`Server running on http://localhost:${env.PORT} [${env.NODE_ENV}]`);

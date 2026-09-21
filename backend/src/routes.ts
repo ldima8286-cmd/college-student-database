@@ -171,7 +171,7 @@ router.get('/audit-logs', requireAdmin, async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 50;
     const entity = req.query.entity as string | undefined;
     const action = req.query.action as string | undefined;
-    const { logs, total } = await getAuditLogs(page, limit, entity, action);
+    const { data: logs, total } = await getAuditLogs(page, limit, entity, action);
     res.json({
       success: true, data: logs, total,
       page, limit,
