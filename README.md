@@ -6,7 +6,7 @@
 
 ## Бейджи
 
-![CI](https://github.com/ldima8286/college-student-database/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/ldima8286-cmd/college-student-database/actions/workflows/ci.yml/badge.svg)
 ![Node.js](https://img.shields.io/badge/Node.js-20-339933?style=flat-square&logo=node.js&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?style=flat-square&logo=typescript&logoColor=white)
 ![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black)
@@ -42,7 +42,7 @@
 
 | Ссылка | Описание |
 |--------|----------|
-| https://ldima8286.github.io/college-student-database/ | Статическая демо-версия (GitHub Pages, моковые данные) |
+| https://ldima8286-cmd.github.io/college-student-database/ | Статическая демо-версия (GitHub Pages, моковые данные) |
 
 ---
 
@@ -124,7 +124,7 @@
 ### 1. Клонирование репозитория
 
 ```bash
-git clone https://github.com/ldima8286/college-student-database.git
+git clone https://github.com/ldima8286-cmd/college-student-database.git
 cd college-student-database
 ```
 
