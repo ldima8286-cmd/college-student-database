@@ -4,13 +4,15 @@ import { AlertTriangle, Trash2 } from 'lucide-react';
 interface Props {
   isOpen: boolean;
   title: string;
-  message: string;
+  message: string | React.ReactNode;
   variant?: 'danger' | 'warning';
+  confirmText?: string;
+  disabled?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
 
-export default function ConfirmDialog({ isOpen, title, message, variant = 'danger', onConfirm, onCancel }: Props) {
+export default function ConfirmDialog({ isOpen, title, message, variant = 'danger', confirmText, disabled, onConfirm, onCancel }: Props) {
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -29,6 +31,7 @@ export default function ConfirmDialog({ isOpen, title, message, variant = 'dange
 
   const Icon = variant === 'danger' ? Trash2 : AlertTriangle;
   const iconColor = variant === 'danger' ? 'text-red-600' : 'text-amber-600';
+  const confirmLabel = confirmText || (variant === 'danger' ? 'Удалить' : 'Подтвердить');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -40,11 +43,11 @@ export default function ConfirmDialog({ isOpen, title, message, variant = 'dange
           </div>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
         </div>
-        <p className="text-gray-600 dark:text-gray-400 mb-6">{message}</p>
+        <div className="text-gray-600 dark:text-gray-400 mb-6">{message}</div>
         <div className="flex gap-3 justify-end">
           <button onClick={onCancel} className="btn btn-secondary">Отмена</button>
-          <button onClick={onConfirm} className={`btn ${variant === 'danger' ? 'btn-danger' : 'btn-primary'}`}>
-            {variant === 'danger' ? 'Удалить' : 'Подтвердить'}
+          <button onClick={onConfirm} disabled={disabled} className={`btn ${variant === 'danger' ? 'btn-danger' : 'btn-primary'} ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
+            {confirmLabel}
           </button>
         </div>
       </div>

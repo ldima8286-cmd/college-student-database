@@ -8,6 +8,12 @@ const mockStats = {
   avgAttendance: 87,
   avgPerformance: 4.2,
   byCourse: { 1: 40, 2: 35, 3: 45, 4: 30 },
+  byCourseStats: [
+    { course: 1, count: 40, avgPerformance: 4.1, avgAttendance: 88 },
+    { course: 2, count: 35, avgPerformance: 3.9, avgAttendance: 84 },
+    { course: 3, count: 45, avgPerformance: 4.4, avgAttendance: 90 },
+    { course: 4, count: 30, avgPerformance: 4.0, avgAttendance: 86 },
+  ],
   bySpecialty: { 'Программирование': 80, 'Дизайн': 70 },
 };
 

@@ -173,6 +173,9 @@ export async function getStats() {
   const courseRows = sqliteDb.prepare('SELECT course, COUNT(*) as count FROM students GROUP BY course').all() as any[];
   const byCourse: Record<number, number> = {};
   for (const r of courseRows) byCourse[r.course] = r.count;
+  const courseStats = sqliteDb.prepare(
+    'SELECT course, ROUND(AVG(performance), 2) as avgPerformance, ROUND(AVG(attendance)) as avgAttendance, COUNT(*) as count FROM students GROUP BY course'
+  ).all() as any[];
   const specRows = sqliteDb.prepare('SELECT specialty, COUNT(*) as count FROM students GROUP BY specialty').all() as any[];
   const bySpecialty: Record<string, number> = {};
   for (const r of specRows) bySpecialty[r.specialty] = r.count;
@@ -180,7 +183,7 @@ export async function getStats() {
     total, withDebt,
     avgAttendance: Math.round(avgs?.a ?? 0),
     avgPerformance: Number((avgs?.p ?? 0).toFixed(2)),
-    byCourse, bySpecialty,
+    byCourse, byCourseStats: courseStats, bySpecialty,
   };
 }
 

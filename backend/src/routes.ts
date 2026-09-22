@@ -20,7 +20,7 @@ import {
 import {
   studentSchema, studentUpdateSchema, querySchema,
   registerSchema, loginSchema, refreshSchema,
-  updateProfileSchema, changePasswordSchema, batchIdsSchema, webhookSchema,
+  updateProfileSchema, changePasswordSchema, batchIdsSchema, batchUpdateSchema, webhookSchema,
 } from './validation.js';
 import {
   authenticate, requireAuth, requireAdmin, getAuthInfo, Role,
@@ -229,6 +229,25 @@ router.post('/students/batch-export', requireAuth, async (req: Request, res: Res
     }
     logAudit('batch-export', 'student', undefined, req.auth?.role, { count: result.length });
     res.json({ success: true, data: result });
+  } catch (err: any) {
+    if (err.name === 'ZodError') {
+      return res.status(400).json({ success: false, error: 'Ошибка валидации', details: err.errors });
+    }
+    res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+router.post('/students/batch-update', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { ids, patch } = batchUpdateSchema.parse(req.body);
+    let updated = 0;
+    for (const id of ids) {
+      const student = await updateStudent(id, patch);
+      if (student) updated++;
+    }
+    logAudit('batch-update', 'student', undefined, req.auth?.role, { updated, fields: Object.keys(patch) });
+    await triggerWebhook('students.updated', { count: updated, ids });
+    res.json({ success: true, data: { updated } });
   } catch (err: any) {
     if (err.name === 'ZodError') {
       return res.status(400).json({ success: false, error: 'Ошибка валидации', details: err.errors });

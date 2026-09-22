@@ -148,6 +148,11 @@ export async function getStats() {
   const courseRows = await db.select({ course: students.course, count: count() }).from(students).groupBy(students.course);
   const byCourse: Record<number, number> = {};
   for (const row of courseRows) byCourse[row.course] = Number(row.count);
+  const byCourseStats = await db.select({
+    course: students.course, count: count(),
+    avgPerformance: sql<number>`ROUND(AVG(${students.performance}), 2)`,
+    avgAttendance: sql<number>`ROUND(AVG(${students.attendance}))`,
+  }).from(students).groupBy(students.course);
   const specialtyRows = await db.select({ specialty: students.specialty, count: count() }).from(students).groupBy(students.specialty);
   const bySpecialty: Record<string, number> = {};
   for (const row of specialtyRows) bySpecialty[row.specialty] = Number(row.count);
@@ -155,7 +160,7 @@ export async function getStats() {
     total, withDebt,
     avgAttendance: Math.round(Number(avgResult[0]?.avgAttendance ?? 0)),
     avgPerformance: Number(Number(avgResult[0]?.avgPerformance ?? 0).toFixed(2)),
-    byCourse, bySpecialty,
+    byCourse, byCourseStats, bySpecialty,
   };
 }
 

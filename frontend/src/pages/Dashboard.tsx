@@ -10,10 +10,11 @@ import { toast } from 'react-hot-toast';
 import StudentTable from '../components/StudentTable';
 import StudentCards from '../components/StudentCards';
 import StatsPanel from '../components/StatsPanel';
+import ChartsPanel from '../components/ChartsPanel';
 import ThemeToggle from '../components/ThemeToggle';
 import ImportExport from '../components/ImportExport';
 import Pagination from '../components/Pagination';
-import PdfExport from '../components/PdfExport';
+import InstallPWA from '../components/InstallPWA';
 
 export default function Dashboard() {
   const [students, setStudents] = useState<Student[]>([]);
@@ -102,6 +103,7 @@ export default function Dashboard() {
             </div>
             <div className="flex items-center gap-2">
               <ThemeToggle />
+              <InstallPWA />
               {isUserAdmin && (
                 <Link to="/admin/profile" className="btn btn-ghost text-sm flex items-center gap-1">
                   <User className="w-4 h-4" />
@@ -122,11 +124,10 @@ export default function Dashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <StatsPanel stats={stats} />
+        <StatsPanel stats={stats} /><ChartsPanel stats={stats} />
 
-        <div className="mb-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
           <ImportExport onImportComplete={loadData} />
-          <PdfExport students={students} />
           <div className="card">
             <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-3">Курс</h3>
             <div className="flex flex-wrap gap-2">

@@ -8,16 +8,17 @@ import {
   Shield, Activity, Clock, Database, FileText, User,
 } from 'lucide-react';
 import { Student, SortField, SortOrder, ViewMode } from '../types';
-import { getStudents, deleteStudent, toggleDebt, deleteAllStudents, getStats, logout, getAnalytics, batchDeleteStudents, batchExportStudents } from '../api';
+import { getStudents, deleteStudent, toggleDebt, deleteAllStudents, getStats, logout, getAnalytics, batchDeleteStudents, batchExportStudents, batchUpdateStudents } from '../api';
 import StudentForm from '../components/StudentForm';
 import StudentTable from '../components/StudentTable';
 import StudentCards from '../components/StudentCards';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ThemeToggle from '../components/ThemeToggle';
+import ChartsPanel from '../components/ChartsPanel';
 import ImportExport from '../components/ImportExport';
 import BatchActions from '../components/BatchActions';
 import Pagination from '../components/Pagination';
-import PdfExport from '../components/PdfExport';
+import InstallPWA from '../components/InstallPWA';
 
 export default function AdminPanel() {
   const [students, setStudents] = useState<Student[]>([]);
@@ -134,6 +135,17 @@ export default function AdminPanel() {
     }
   };
 
+  const handleBatchUpdate = async (ids: string[], patch: Partial<Student>) => {
+    try {
+      const updated = await batchUpdateStudents(ids, patch);
+      toast.success(`Обновлено ${updated} записей`);
+      setSelectedIds([]);
+      loadData();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
   const handleSort = (field: SortField) => {
     if (sortBy === field) setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     else { setSortBy(field); setSortOrder('asc'); }
@@ -160,6 +172,7 @@ export default function AdminPanel() {
             </div>
             <div className="flex items-center gap-2">
               <ThemeToggle />
+              <InstallPWA />
               <Link to="/admin/audit" className="btn btn-ghost text-sm flex items-center gap-1">
                 <FileText className="w-4 h-4" /> <span className="hidden sm:inline">Аудит</span>
               </Link>
@@ -211,6 +224,7 @@ export default function AdminPanel() {
             </div>
           </div>
         )}
+        <ChartsPanel stats={stats} />
 
         {/* Actions bar */}
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between mb-6">
@@ -234,7 +248,6 @@ export default function AdminPanel() {
 
           <div className="flex items-center gap-2 flex-wrap">
             <ImportExport onImportComplete={loadData} />
-            <PdfExport students={students} />
             <select value={filterCourse ?? ''} onChange={(e) => { setFilterCourse(e.target.value ? Number(e.target.value) : undefined); setPage(1); }} className="input w-auto">
               <option value="">Все курсы</option>
               {[1, 2, 3, 4, 5, 6].map((c) => <option key={c} value={c}>{c} курс</option>)}
@@ -286,6 +299,7 @@ export default function AdminPanel() {
           students={students}
           onBatchDelete={handleBatchDelete}
           onBatchExport={handleBatchExport}
+          onBatchUpdate={handleBatchUpdate}
           selectedIds={selectedIds}
           setSelectedIds={setSelectedIds}
         />

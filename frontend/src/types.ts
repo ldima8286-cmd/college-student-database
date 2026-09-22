@@ -19,6 +19,7 @@ export interface StudentStats {
   avgAttendance: number;
   avgPerformance: number;
   byCourse: Record<number, number>;
+  byCourseStats: { course: number; count: number; avgPerformance: number; avgAttendance: number }[];
   bySpecialty: Record<string, number>;
 }
 

@@ -12,6 +12,7 @@ interface Props {
 export default function ImportExport({ onImportComplete }: Props) {
   const jsonInputRef = useRef<HTMLInputElement>(null);
   const excelInputRef = useRef<HTMLInputElement>(null);
+  const duplicateKeys = useRef<Set<string> | undefined>(undefined);
   const [importing, setImporting] = useState(false);
 
   const exportToJSON = async () => {
@@ -85,6 +86,15 @@ export default function ImportExport({ onImportComplete }: Props) {
     };
   };
 
+  const loadExistingKeys = async () => {
+    if (duplicateKeys.current) return duplicateKeys.current;
+    const res = await getStudents({ limit: 10000 });
+    const keys = new Set<string>();
+    for (const s of res.data) keys.add(`${s.fullName.trim().toLowerCase()}|${s.group.trim().toLowerCase()}`);
+    duplicateKeys.current = keys;
+    return keys;
+  };
+
   const importFromJSON = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -95,19 +105,24 @@ export default function ImportExport({ onImportComplete }: Props) {
       const data = JSON.parse(text) as any[];
       if (!Array.isArray(data)) throw new Error('Файл должен содержать массив студентов');
 
+      const existingKeys = await loadExistingKeys();
       let imported = 0;
       let skipped = 0;
 
       for (const row of data) {
         const student = parseStudentRow(row);
         if (!student) { skipped++; continue; }
+        const key = `${student.fullName.trim().toLowerCase()}|${student.group.trim().toLowerCase()}`;
+        if (existingKeys.has(key)) { skipped++; continue; }
         try {
           await createStudent(student);
+          existingKeys.add(key);
           imported++;
         } catch { skipped++; }
       }
 
-      toast.success(`Импорт: ${imported} добавлено, ${skipped} пропущено`);
+      toast.success(`Импорт: ${imported} добавлено, ${skipped} пропущено (дубликаты/ошибки)`);
+      duplicateKeys.current = undefined;
       onImportComplete();
     } catch (err: any) {
       toast.error(`Ошибка: ${err.message}`);
@@ -130,19 +145,24 @@ export default function ImportExport({ onImportComplete }: Props) {
 
       if (data.length === 0) throw new Error('Файл пуст');
 
+      const existingKeys = await loadExistingKeys();
       let imported = 0;
       let skipped = 0;
 
       for (const row of data) {
         const student = parseStudentRow(row);
         if (!student) { skipped++; continue; }
+        const key = `${student.fullName.trim().toLowerCase()}|${student.group.trim().toLowerCase()}`;
+        if (existingKeys.has(key)) { skipped++; continue; }
         try {
           await createStudent(student);
+          existingKeys.add(key);
           imported++;
         } catch { skipped++; }
       }
 
-      toast.success(`Импорт: ${imported} добавлено, ${skipped} пропущено`);
+      toast.success(`Импорт: ${imported} добавлено, ${skipped} пропущено (дубликаты/ошибки)`);
+      duplicateKeys.current = undefined;
       onImportComplete();
     } catch (err: any) {
       toast.error(`Ошибка: ${err.message}`);

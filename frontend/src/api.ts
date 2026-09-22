@@ -152,6 +152,12 @@ export async function batchDeleteStudents(ids: string[]): Promise<void> {
   await api.post('/students/batch-delete', { ids });
 }
 
+export async function batchUpdateStudents(ids: string[], patch: Partial<Student>): Promise<number> {
+  const { data } = await api.post<ApiResponse<{ updated: number }>>('/students/batch-update', { ids, patch });
+  if (!data.success || data.data === undefined) throw new Error('Ошибка обновления');
+  return data.data.updated;
+}
+
 export async function batchExportStudents(ids?: string[]): Promise<any[]> {
   const { data } = await api.post('/students/batch-export', { ids });
   if (!data.success || !data.data) throw new Error('Ошибка экспорта');

@@ -38,7 +38,7 @@ interface DbModule {
   deleteStudent(id: string): Promise<boolean>;
   toggleDebt(id: string): Promise<Student | null>;
   deleteAllStudents(): Promise<number>;
-  getStats(): Promise<{ total: number; withDebt: number; avgAttendance: number; avgPerformance: number; byCourse: Record<number, number>; bySpecialty: Record<string, number> }>;
+  getStats(): Promise<{ total: number; withDebt: number; avgAttendance: number; avgPerformance: number; byCourse: Record<number, number>; byCourseStats: { course: number; count: number; avgPerformance: number; avgAttendance: number }[]; bySpecialty: Record<string, number> }>;
   getStudentsBySpecialty(): Promise<{ specialty: string; count: number; avgPerformance: number; avgAttendance: number }[]>;
   getStudentsByCourse(): Promise<{ course: number; count: number; withDebt: number }[]>;
   getRecentStudents(limit?: number): Promise<Student[]>;

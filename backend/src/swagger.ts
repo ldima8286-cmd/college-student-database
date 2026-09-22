@@ -36,6 +36,7 @@ const swaggerSpec = {
           avgAttendance: { type: 'integer' },
           avgPerformance: { type: 'number' },
           byCourse: { type: 'object', additionalProperties: { type: 'integer' } },
+          byCourseStats: { type: 'array', items: { type: 'object', properties: { course: { type: 'integer' }, count: { type: 'integer' }, avgPerformance: { type: 'number' }, avgAttendance: { type: 'number' } } } },
           bySpecialty: { type: 'object', additionalProperties: { type: 'integer' } },
         },
       },
