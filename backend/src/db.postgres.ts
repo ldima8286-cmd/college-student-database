@@ -12,6 +12,45 @@ type SortOrder = 'asc' | 'desc';
 
 export { db as rawDb };
 
+export async function ensureSchema(): Promise<void> {
+  await client.unsafe(`
+    CREATE TABLE IF NOT EXISTS users (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      email TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      full_name TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'user',
+      avatar TEXT,
+      phone TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE TABLE IF NOT EXISTS students (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      full_name TEXT NOT NULL,
+      course INTEGER NOT NULL CHECK(course >= 1 AND course <= 6),
+      "group" TEXT NOT NULL,
+      specialty TEXT NOT NULL,
+      attendance INTEGER NOT NULL DEFAULT 100 CHECK(attendance >= 0 AND attendance <= 100),
+      performance REAL NOT NULL DEFAULT 4.0 CHECK(performance >= 0 AND performance <= 5),
+      academic_debt BOOLEAN NOT NULL DEFAULT false,
+      email TEXT,
+      phone TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE TABLE IF NOT EXISTS audit_log (
+      id SERIAL PRIMARY KEY,
+      action TEXT NOT NULL,
+      entity TEXT NOT NULL,
+      entity_id TEXT,
+      user_id TEXT,
+      details JSONB,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+}
+
 export async function getAllStudents(
   search?: string, page: number = 1, limit: number = 50,
   sortBy: string = 'fullName', sortOrder: SortOrder = 'asc',
@@ -24,7 +63,7 @@ export async function getAllStudents(
   const conditions: ReturnType<typeof eq>[] = [];
   if (search) {
     const term = `%${search}%`;
-    conditions.push(or(like(students.fullName, term), like(students.group, term), like(students.specialty, term))!);
+    conditions.push(or(like(students.fullName, term), like(students.group, term), like(students.specialty, term), like(students.email, term), like(students.phone, term))!);
   }
   if (filterDebt !== undefined) conditions.push(eq(students.academicDebt, filterDebt));
   if (filterCourse !== undefined) conditions.push(eq(students.course, filterCourse));
@@ -60,7 +99,8 @@ export async function createStudent(data: Omit<Student, 'id' | 'createdAt' | 'up
   const inserted = await db.insert(students).values({
     id, fullName: data.fullName, course: data.course, group: data.group,
     specialty: data.specialty, attendance: data.attendance, performance: data.performance,
-    academicDebt: data.academicDebt, createdAt: new Date(now), updatedAt: new Date(now),
+    academicDebt: data.academicDebt, email: data.email ?? null, phone: data.phone ?? null,
+    createdAt: new Date(now), updatedAt: new Date(now),
   }).returning();
   return inserted[0] as unknown as Student;
 }
@@ -72,7 +112,10 @@ export async function updateStudent(id: string, data: Partial<Omit<Student, 'id'
     fullName: data.fullName ?? existing.fullName, course: data.course ?? existing.course,
     group: data.group ?? existing.group, specialty: data.specialty ?? existing.specialty,
     attendance: data.attendance ?? existing.attendance, performance: data.performance ?? existing.performance,
-    academicDebt: data.academicDebt ?? existing.academicDebt, updatedAt: new Date(),
+    academicDebt: data.academicDebt ?? existing.academicDebt,
+    email: data.email !== undefined ? data.email : existing.email,
+    phone: data.phone !== undefined ? data.phone : existing.phone,
+    updatedAt: new Date(),
   };
   const rows = await db.update(students).set(updated).where(eq(students.id, id)).returning();
   return (rows[0] as unknown as Student) ?? null;

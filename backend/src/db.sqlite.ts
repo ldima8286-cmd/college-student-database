@@ -20,10 +20,20 @@ sqliteDb.exec(`
     attendance INTEGER NOT NULL DEFAULT 100 CHECK(attendance >= 0 AND attendance <= 100),
     performance REAL NOT NULL DEFAULT 4.0 CHECK(performance >= 0 AND performance <= 5),
     academicDebt INTEGER NOT NULL DEFAULT 0,
+    email TEXT,
+    phone TEXT,
     createdAt TEXT NOT NULL,
     updatedAt TEXT NOT NULL
   )
 `);
+
+const studentCols = sqliteDb.prepare(`PRAGMA table_info(students)`).all() as any[];
+if (!studentCols.some((c: any) => c.name === 'email')) {
+  sqliteDb.exec(`ALTER TABLE students ADD COLUMN email TEXT`);
+}
+if (!studentCols.some((c: any) => c.name === 'phone')) {
+  sqliteDb.exec(`ALTER TABLE students ADD COLUMN phone TEXT`);
+}
 
 sqliteDb.exec(`
   CREATE TABLE IF NOT EXISTS auditLog (
@@ -55,6 +65,10 @@ const db = drizzle(sqliteDb, { schema });
 
 export const rawDb: DatabaseType = sqliteDb;
 
+export async function ensureSchema(): Promise<void> {
+  return;
+}
+
 type SortOrder = 'asc' | 'desc';
 const studentsTable = schema.students;
 const auditTable = schema.auditLog;
@@ -72,9 +86,9 @@ export async function getAllStudents(
   const params: any[] = [];
 
   if (search) {
-    conditions.push(`(fullName LIKE ? OR "group" LIKE ? OR specialty LIKE ?)`);
+    conditions.push(`(fullName LIKE ? OR "group" LIKE ? OR specialty LIKE ? OR email LIKE ? OR phone LIKE ?)`);
     const term = `%${search}%`;
-    params.push(term, term, term);
+    params.push(term, term, term, term, term);
   }
   if (filterDebt !== undefined) {
     conditions.push(`academicDebt = ?`);
@@ -110,9 +124,9 @@ export async function createStudent(data: Omit<Student, 'id' | 'createdAt' | 'up
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   sqliteDb.prepare(
-    `INSERT INTO students (id, fullName, course, "group", specialty, attendance, performance, academicDebt, createdAt, updatedAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(id, data.fullName, data.course, data.group, data.specialty, data.attendance, data.performance, data.academicDebt ? 1 : 0, now, now);
+    `INSERT INTO students (id, fullName, course, "group", specialty, attendance, performance, academicDebt, email, phone, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(id, data.fullName, data.course, data.group, data.specialty, data.attendance, data.performance, data.academicDebt ? 1 : 0, data.email ?? null, data.phone ?? null, now, now);
   return (await getStudentById(id))!;
 }
 
@@ -123,11 +137,14 @@ export async function updateStudent(id: string, data: Partial<Omit<Student, 'id'
     fullName: data.fullName ?? existing.fullName, course: data.course ?? existing.course,
     group: data.group ?? existing.group, specialty: data.specialty ?? existing.specialty,
     attendance: data.attendance ?? existing.attendance, performance: data.performance ?? existing.performance,
-    academicDebt: data.academicDebt ?? existing.academicDebt, updatedAt: new Date().toISOString(),
+    academicDebt: data.academicDebt ?? existing.academicDebt,
+    email: data.email !== undefined ? data.email : existing.email,
+    phone: data.phone !== undefined ? data.phone : existing.phone,
+    updatedAt: new Date().toISOString(),
   };
   sqliteDb.prepare(
-    `UPDATE students SET fullName=?, course=?, "group"=?, specialty=?, attendance=?, performance=?, academicDebt=?, updatedAt=? WHERE id=?`
-  ).run(updated.fullName, updated.course, updated.group, updated.specialty, updated.attendance, updated.performance, updated.academicDebt ? 1 : 0, updated.updatedAt, id);
+    `UPDATE students SET fullName=?, course=?, "group"=?, specialty=?, attendance=?, performance=?, academicDebt=?, email=?, phone=?, updatedAt=? WHERE id=?`
+  ).run(updated.fullName, updated.course, updated.group, updated.specialty, updated.attendance, updated.performance, updated.academicDebt ? 1 : 0, updated.email, updated.phone, updated.updatedAt, id);
   return (await getStudentById(id)) ?? null;
 }
 

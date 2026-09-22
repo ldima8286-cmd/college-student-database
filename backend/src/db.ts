@@ -9,6 +9,8 @@ export interface Student {
   attendance: number;
   performance: number;
   academicDebt: boolean;
+  email: string | null;
+  phone: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -28,6 +30,7 @@ export interface UserRecord {
 type SortOrder = 'asc' | 'desc';
 
 interface DbModule {
+  ensureSchema?(): Promise<void>;
   getAllStudents(search?: string, page?: number, limit?: number, sortBy?: string, sortOrder?: SortOrder, filterDebt?: boolean, filterCourse?: number): Promise<{ students: Student[]; total: number }>;
   getStudentById(id: string): Promise<Student | undefined>;
   createStudent(data: Omit<Student, 'id' | 'createdAt' | 'updatedAt'>): Promise<Student>;
@@ -122,5 +125,6 @@ export let db: any = null;
 export async function initDb() {
   const mod = await getDbModule();
   db = mod.rawDb;
+  await mod.ensureSchema?.();
   return mod;
 }

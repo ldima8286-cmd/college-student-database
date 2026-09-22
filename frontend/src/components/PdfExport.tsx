@@ -27,6 +27,8 @@ export default function PdfExport({ students }: Props) {
         String(s.course),
         s.group,
         s.specialty,
+        s.email || '',
+        s.phone || '',
         `${s.attendance}%`,
         s.performance.toFixed(1),
         s.academicDebt ? 'Да' : 'Нет',
@@ -34,7 +36,7 @@ export default function PdfExport({ students }: Props) {
 
       autoTable(doc, {
         startY: 25,
-        head: [['ФИО', 'Курс', 'Группа', 'Специальность', 'Посещаемость', 'Успеваемость', 'Задолженность']],
+        head: [['ФИО', 'Курс', 'Группа', 'Специальность', 'Email', 'Телефон', 'Посещаемость', 'Успеваемость', 'Задолженность']],
         body: rows,
         styles: { fontSize: 8, cellPadding: 3 },
         headStyles: { fillColor: [37, 99, 235] },

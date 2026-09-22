@@ -23,6 +23,8 @@ export const students = pgTable('students', {
   attendance: integer('attendance').notNull().default(100),
   performance: real('performance').notNull().default(4.0),
   academicDebt: boolean('academic_debt').notNull().default(false),
+  email: text('email'),
+  phone: text('phone'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [

@@ -8,6 +8,8 @@ export const studentSchema = z.object({
   attendance: z.number().int().min(0).max(100),
   performance: z.number().min(0).max(5),
   academicDebt: z.boolean(),
+  email: z.string().email('Некорректный email').max(200).nullable().optional(),
+  phone: z.string().max(50).nullable().optional(),
 });
 
 export const studentUpdateSchema = studentSchema.partial();

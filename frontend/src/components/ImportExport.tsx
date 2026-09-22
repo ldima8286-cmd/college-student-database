@@ -39,13 +39,15 @@ export default function ImportExport({ onImportComplete }: Props) {
         'Курс': s.course,
         'Группа': s.group,
         'Специальность': s.specialty,
+        'Email': s.email || '',
+        'Телефон': s.phone || '',
         'Посещаемость (%)': s.attendance,
         'Успеваемость (0-5)': s.performance,
         'Задолженность': s.academicDebt ? 'Да' : 'Нет',
       }));
       const ws = XLSX.utils.json_to_sheet(rows);
       ws['!cols'] = [
-        { wch: 30 }, { wch: 6 }, { wch: 10 }, { wch: 25 }, { wch: 14 }, { wch: 16 }, { wch: 14 },
+        { wch: 30 }, { wch: 6 }, { wch: 10 }, { wch: 25 }, { wch: 25 }, { wch: 16 }, { wch: 14 }, { wch: 16 }, { wch: 14 },
       ];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Студенты');
@@ -65,6 +67,8 @@ export default function ImportExport({ onImportComplete }: Props) {
     const performance = parseFloat(row['Успеваемость (0-5)'] || row['performance'] || '4.0');
     const debtVal = row['Задолженность'] || row['academicDebt'] || row['academic_debt'] || '';
     const academicDebt = debtVal === 'Да' || debtVal === 'true' || debtVal === true || debtVal === 1;
+    const email = row['Email'] || row['email'] || '';
+    const phone = row['Телефон'] || row['phone'] || '';
 
     if (!fullName.trim() || !group.trim() || !specialty.trim()) return null;
 
@@ -76,6 +80,8 @@ export default function ImportExport({ onImportComplete }: Props) {
       attendance: Math.min(100, Math.max(0, isNaN(attendance) ? 100 : attendance)),
       performance: Math.min(5, Math.max(0, isNaN(performance) ? 4.0 : performance)),
       academicDebt,
+      email: email.trim() ? email.trim() : null,
+      phone: phone.trim() ? phone.trim() : null,
     };
   };
 

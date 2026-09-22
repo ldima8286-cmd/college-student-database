@@ -240,7 +240,7 @@ router.post('/students/batch-export', requireAuth, async (req: Request, res: Res
 router.post('/students', requireAdmin, async (req: Request, res: Response) => {
   try {
     const data = studentSchema.parse(req.body);
-    const student = await createStudent(data);
+    const student = await createStudent({ ...data, email: data.email ?? null, phone: data.phone ?? null });
     logAudit('create', 'student', student.id, req.auth?.role, { fullName: student.fullName });
     await triggerWebhook('student.created', student);
     res.status(201).json({ success: true, data: student });

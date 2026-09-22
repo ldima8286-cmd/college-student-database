@@ -7,6 +7,8 @@ export interface Student {
   attendance: number;
   performance: number;
   academicDebt: boolean;
+  email: string | null;
+  phone: string | null;
   createdAt: string;
   updatedAt: string;
 }

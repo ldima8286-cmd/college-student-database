@@ -9,10 +9,13 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:generate": "drizzle-kit generate --config drizzle.config.postgres.ts",
+    "db:migrate": "drizzle-kit migrate --config drizzle.config.postgres.ts",
+    "db:push": "drizzle-kit push --config drizzle.config.postgres.ts",
+    "db:studio": "drizzle-kit studio --config drizzle.config.postgres.ts",
+    "db:generate:sqlite": "drizzle-kit generate --config drizzle.config.sqlite.ts",
+    "db:migrate:sqlite": "drizzle-kit migrate --config drizzle.config.sqlite.ts",
+    "db:push:sqlite": "drizzle-kit push --config drizzle.config.sqlite.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -45,6 +48,7 @@
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.8",
     "@vitest/coverage-v8": "^5.0.1",
+    "dotenv": "^18.0.2",
     "drizzle-kit": "^0.31.11",
     "supertest": "^7.2.2",
     "tsx": "^4.19.3",

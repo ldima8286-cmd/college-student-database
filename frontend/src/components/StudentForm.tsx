@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Student } from '../types';
 import { createStudent, updateStudent } from '../api';
 import { toast } from 'react-hot-toast';
-import { Save, X, User, BookOpen, Users, Percent, GraduationCap } from 'lucide-react';
+import { Save, X, User, BookOpen, Users, Percent, GraduationCap, Mail, Phone } from 'lucide-react';
 
 interface Props {
   editingStudent: Student | null;
@@ -18,6 +18,8 @@ const emptyForm = {
   attendance: 100,
   performance: 4.0,
   academicDebt: false,
+  email: '',
+  phone: '',
 };
 
 export default function StudentForm({ editingStudent, onSuccess, onCancel }: Props) {
@@ -28,7 +30,7 @@ export default function StudentForm({ editingStudent, onSuccess, onCancel }: Pro
   useEffect(() => {
     if (editingStudent) {
       const { id, createdAt, updatedAt, ...rest } = editingStudent;
-      setForm(rest);
+      setForm({ ...rest, email: rest.email || '', phone: rest.phone || '' });
     } else {
       setForm(emptyForm);
     }
@@ -43,6 +45,7 @@ export default function StudentForm({ editingStudent, onSuccess, onCancel }: Pro
     if (!form.specialty.trim()) errs.specialty = 'Введите специальность';
     if (form.attendance < 0 || form.attendance > 100) errs.attendance = '0-100';
     if (form.performance < 0 || form.performance > 5) errs.performance = '0-5';
+    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = 'Некорректный email';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -50,13 +53,18 @@ export default function StudentForm({ editingStudent, onSuccess, onCancel }: Pro
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
+    const payload = {
+      ...form,
+      email: form.email?.trim() ? form.email.trim() : null,
+      phone: form.phone?.trim() ? form.phone.trim() : null,
+    };
     try {
       setSubmitting(true);
       if (editingStudent) {
-        await updateStudent(editingStudent.id, form);
+        await updateStudent(editingStudent.id, payload);
         toast.success('Студент обновлён');
       } else {
-        await createStudent(form);
+        await createStudent(payload);
         toast.success('Студент добавлен');
       }
       onSuccess();
@@ -103,6 +111,19 @@ export default function StudentForm({ editingStudent, onSuccess, onCancel }: Pro
           <input type="text" value={form.specialty} onChange={(e) => setForm({ ...form, specialty: e.target.value })}
             className={`input ${errors.specialty ? 'border-red-500' : ''}`} placeholder="Программирование" />
           {errors.specialty && <p className="text-red-500 text-xs mt-1">{errors.specialty}</p>}
+        </div>
+
+        <div>
+          <label className="label flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" /> Email</label>
+          <input type="email" value={form.email || ''} onChange={(e) => setForm({ ...form, email: e.target.value })}
+            className={`input ${errors.email ? 'border-red-500' : ''}`} placeholder="student@example.com" />
+          {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+        </div>
+
+        <div>
+          <label className="label flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" /> Телефон</label>
+          <input type="tel" value={form.phone || ''} onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            className="input" placeholder="+7 (___) ___-__-__" />
         </div>
 
         <div>
