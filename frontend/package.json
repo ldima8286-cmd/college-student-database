@@ -7,6 +7,7 @@
     "tunnel": "npx localtunnel --port 3000",
     "tunnel:lhr": "ssh -R 80:localhost:3000 -o StrictHostKeyChecking=no -o UserKnownHostsFile=NUL -o ServerAliveInterval=30 nokey@localhost.run",
     "build": "tsc && vite build",
+    "build:pages": "tsc && vite build --base=/college-student-database/",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",

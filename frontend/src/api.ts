@@ -1,7 +1,10 @@
 import axios from 'axios';
 import { Student, PaginatedResponse, StudentStats, ApiResponse } from './types';
+import * as mock from './mock';
 
 export type Role = 'admin' | 'user';
+
+const DEMO_MODE = import.meta.env.VITE_DEMO === 'true';
 
 const api = axios.create({
   baseURL: '/api',
@@ -29,6 +32,7 @@ api.interceptors.response.use(
 );
 
 export async function login(email: string, password: string): Promise<{ token: string; role: Role }> {
+  if (DEMO_MODE) return mock.login(email);
   const { data } = await api.post<ApiResponse<{ accessToken: string; refreshToken: string; role: Role }>>('/auth/login', { email, password });
   if (!data.success || !data.data) throw new Error(data.error || 'Ошибка входа');
   localStorage.setItem('auth_token', data.data.accessToken);
@@ -38,6 +42,7 @@ export async function login(email: string, password: string): Promise<{ token: s
 }
 
 export async function logout(): Promise<void> {
+  if (DEMO_MODE) return mock.logout();
   try { await api.post('/auth/logout'); } finally {
     localStorage.removeItem('auth_token');
     localStorage.removeItem('auth_refresh_token');
@@ -61,78 +66,92 @@ export async function getStudents(params: {
   search?: string; page?: number; limit?: number; sortBy?: string;
   sortOrder?: 'asc' | 'desc'; filterDebt?: boolean; filterCourse?: number;
 }): Promise<PaginatedResponse> {
+  if (DEMO_MODE) return mock.getStudents(params);
   const { data } = await api.get<PaginatedResponse>('/students', { params });
   return data;
 }
 
 export async function getStudentById(id: string): Promise<Student> {
+  if (DEMO_MODE) return mock.getStudentById(id);
   const { data } = await api.get<ApiResponse<Student>>(`/students/${id}`);
   if (!data.success || !data.data) throw new Error('Студент не найден');
   return data.data;
 }
 
 export async function createStudent(student: Omit<Student, 'id' | 'createdAt' | 'updatedAt'>): Promise<Student> {
+  if (DEMO_MODE) return mock.createStudent(student);
   const { data } = await api.post<ApiResponse<Student>>('/students', student);
   if (!data.success || !data.data) throw new Error('Ошибка создания');
   return data.data;
 }
 
 export async function updateStudent(id: string, student: Partial<Student>): Promise<Student> {
+  if (DEMO_MODE) return mock.updateStudent(id, student);
   const { data } = await api.put<ApiResponse<Student>>(`/students/${id}`, student);
   if (!data.success || !data.data) throw new Error('Ошибка обновления');
   return data.data;
 }
 
 export async function deleteStudent(id: string): Promise<void> {
+  if (DEMO_MODE) return mock.deleteStudent(id);
   await api.delete(`/students/${id}`);
 }
 
 export async function toggleDebt(id: string): Promise<Student> {
+  if (DEMO_MODE) return mock.toggleDebt(id);
   const { data } = await api.patch<ApiResponse<Student>>(`/students/${id}/toggle-debt`);
   if (!data.success || !data.data) throw new Error('Ошибка');
   return data.data;
 }
 
 export async function deleteAllStudents(): Promise<number> {
+  if (DEMO_MODE) return mock.deleteAllStudents();
   const { data } = await api.delete<ApiResponse<{ deleted: number }>>('/students');
   return data.data?.deleted ?? 0;
 }
 
 export async function getStats(): Promise<StudentStats> {
+  if (DEMO_MODE) return mock.getStats();
   const { data } = await api.get<ApiResponse<StudentStats>>('/students/stats');
   if (!data.success || !data.data) throw new Error('Ошибка загрузки статистики');
   return data.data;
 }
 
 export async function getAnalytics(): Promise<any> {
+  if (DEMO_MODE) return mock.getAnalytics();
   const { data } = await api.get('/admin/analytics');
   if (!data.success) throw new Error('Ошибка');
   return data.data;
 }
 
 export async function register(data: { email: string; password: string; fullName: string; phone?: string }): Promise<void> {
+  if (DEMO_MODE) return mock.register();
   const res = await api.post<ApiResponse<void>>('/auth/register', data);
   if (!res.data.success) throw new Error(res.data.error || 'Ошибка регистрации');
 }
 
 export async function getMe(): Promise<any> {
+  if (DEMO_MODE) return mock.getMe();
   const { data } = await api.get<ApiResponse<any>>('/auth/me');
   if (!data.success || !data.data) throw new Error('Ошибка загрузки профиля');
   return data.data;
 }
 
 export async function updateProfile(data: { fullName: string; phone?: string; avatar?: string }): Promise<any> {
+  if (DEMO_MODE) return mock.updateProfile(data);
   const { data: res } = await api.put<ApiResponse<any>>('/auth/me', data);
   if (!res.success) throw new Error(res.error || 'Ошибка обновления');
   return res.data;
 }
 
 export async function changePassword(data: { oldPassword: string; newPassword: string }): Promise<void> {
+  if (DEMO_MODE) return mock.changePassword(data);
   const { data: res } = await api.put<ApiResponse<void>>('/auth/me/password', data);
   if (!res.success) throw new Error(res.error || 'Ошибка смены пароля');
 }
 
 export async function refreshToken(): Promise<string> {
+  if (DEMO_MODE) return mock.refreshToken();
   const refreshToken = localStorage.getItem('auth_refresh_token');
   if (!refreshToken) throw new Error('Нет refresh-токена');
   const { data } = await api.post<ApiResponse<{ token: string; role: string }>>('/auth/refresh', { refreshToken });
@@ -143,22 +162,26 @@ export async function refreshToken(): Promise<string> {
 }
 
 export async function getAuditLogs(page?: number, limit?: number, entity?: string): Promise<any> {
+  if (DEMO_MODE) return mock.getAuditLogs(page ?? 1, limit ?? 50, entity);
   const { data } = await api.get('/audit-logs', { params: { page, limit, entity } });
   if (!data.success) throw new Error('Ошибка загрузки журнала');
   return data.data;
 }
 
 export async function batchDeleteStudents(ids: string[]): Promise<void> {
+  if (DEMO_MODE) return mock.batchDeleteStudents(ids);
   await api.post('/students/batch-delete', { ids });
 }
 
 export async function batchUpdateStudents(ids: string[], patch: Partial<Student>): Promise<number> {
+  if (DEMO_MODE) return mock.batchUpdateStudents(ids, patch);
   const { data } = await api.post<ApiResponse<{ updated: number }>>('/students/batch-update', { ids, patch });
   if (!data.success || data.data === undefined) throw new Error('Ошибка обновления');
   return data.data.updated;
 }
 
 export async function batchExportStudents(ids?: string[]): Promise<any[]> {
+  if (DEMO_MODE) return mock.batchExportStudents(ids);
   const { data } = await api.post('/students/batch-export', { ids });
   if (!data.success || !data.data) throw new Error('Ошибка экспорта');
   return data.data;
