@@ -15,8 +15,21 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   </React.StrictMode>
 );
 
-if ('serviceWorker' in navigator) {
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).catch(() => {});
+
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      if (event.data?.type === 'SW_UPDATE') {
+        navigator.serviceWorker.controller?.postMessage({ type: 'SKIP_WAITING' });
+      }
+    });
+
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (refreshing) return;
+      refreshing = true;
+      window.location.reload();
+    });
   });
 }

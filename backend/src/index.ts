@@ -16,7 +16,9 @@ app.use(helmet({
 }));
 
 app.use(cors({
-  origin: env.CORS_ORIGIN.split(','),
+  origin: env.NODE_ENV === 'production'
+    ? env.CORS_ORIGIN.split(',')
+    : true,
   credentials: true,
 }));
 
@@ -25,7 +27,11 @@ const limiter = rateLimit({
   max: 200,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => req.url === '/api/health' || req.url === '/favicon.ico',
+  skip: (req) => {
+    if (req.url === '/api/health' || req.url === '/favicon.ico') return true;
+    if (req.method === 'GET') return true;
+    return req.method === 'HEAD' || req.method === 'OPTIONS';
+  },
   message: { success: false, error: 'Слишком много запросов, попробуйте позже' },
 });
 app.use('/api', limiter);
