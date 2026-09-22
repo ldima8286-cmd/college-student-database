@@ -13,6 +13,18 @@ export interface Student {
   updatedAt: string;
 }
 
+export interface UserRecord {
+  id: string;
+  email: string;
+  passwordHash: string;
+  fullName: string;
+  role: string;
+  avatar: string | null;
+  phone: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 type SortOrder = 'asc' | 'desc';
 
 interface DbModule {
@@ -29,6 +41,12 @@ interface DbModule {
   getRecentStudents(limit?: number): Promise<Student[]>;
   logAudit(action: string, entity: string, entityId?: string, userId?: string, details?: any): Promise<void>;
   getAuditLogs(page?: number, limit?: number, entity?: string, action?: string): Promise<{ data: any[]; total: number }>;
+  findUserByEmail(email: string): Promise<UserRecord | undefined>;
+  getUserById(id: string): Promise<UserRecord | undefined>;
+  createUser(data: { email: string; passwordHash: string; fullName: string; role?: string; avatar?: string | null; phone?: string | null }): Promise<UserRecord>;
+  updateUser(id: string, data: { fullName?: string; avatar?: string | null; phone?: string | null }): Promise<UserRecord | null>;
+  updateUserPassword(id: string, passwordHash: string): Promise<boolean>;
+  getAllUsers(): Promise<UserRecord[]>;
   rawDb: any;
 }
 
@@ -45,7 +63,7 @@ export async function getDbModule(): Promise<DbModule> {
     _db = mod;
   }
 
-  return _db;
+return _db as unknown as DbModule;
 }
 
 export async function getAllStudents(...args: Parameters<DbModule['getAllStudents']>) {
@@ -80,6 +98,24 @@ export async function getStudentsByCourse(...args: Parameters<DbModule['getStude
 }
 export async function getRecentStudents(...args: Parameters<DbModule['getRecentStudents']>) {
   return (await getDbModule()).getRecentStudents(...args);
+}
+export async function findUserByEmail(...args: Parameters<DbModule['findUserByEmail']>) {
+  return (await getDbModule()).findUserByEmail(...args);
+}
+export async function getUserById(...args: Parameters<DbModule['getUserById']>) {
+  return (await getDbModule()).getUserById(...args);
+}
+export async function createUser(...args: Parameters<DbModule['createUser']>) {
+  return (await getDbModule()).createUser(...args);
+}
+export async function updateUser(...args: Parameters<DbModule['updateUser']>) {
+  return (await getDbModule()).updateUser(...args);
+}
+export async function updateUserPassword(...args: Parameters<DbModule['updateUserPassword']>) {
+  return (await getDbModule()).updateUserPassword(...args);
+}
+export async function getAllUsers(...args: Parameters<DbModule['getAllUsers']>) {
+  return (await getDbModule()).getAllUsers(...args);
 }
 
 export let db: any = null;

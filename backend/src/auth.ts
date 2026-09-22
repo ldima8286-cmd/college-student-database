@@ -1,12 +1,19 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 import { env } from './env.js';
+import { findUserByEmail, getUserById } from './db.js';
 
 export type Role = 'admin' | 'user';
 
 interface TokenPayload {
+  userId: string;
+  email: string;
   role: Role;
-  iat: number;
+}
+
+interface RefreshPayload {
+  userId: string;
 }
 
 declare global {
@@ -17,15 +24,47 @@ declare global {
   }
 }
 
-export function login(password: string, role: Role): { token: string; role: Role } | null {
-  const expectedPassword = role === 'admin' ? env.ADMIN_PASSWORD : env.USER_PASSWORD;
+const ACCESS_TOKEN_TTL = '15m';
+const REFRESH_TOKEN_TTL = '7d';
 
-  if (password !== expectedPassword) return null;
+export function hashPassword(password: string): string {
+  return bcrypt.hashSync(password, 10);
+}
 
-  const payload: TokenPayload = { role, iat: Math.floor(Date.now() / 1000) };
-  const token = jwt.sign(payload, env.JWT_SECRET, { expiresIn: '24h' });
+export function comparePassword(password: string, hash: string): boolean {
+  return bcrypt.compareSync(password, hash);
+}
 
-  return { token, role };
+export function signAccessToken(user: { id: string; email: string; role: Role }): string {
+  const payload: TokenPayload = { userId: user.id, email: user.email, role: user.role };
+  return jwt.sign(payload, env.JWT_SECRET, { expiresIn: ACCESS_TOKEN_TTL });
+}
+
+export function signRefreshToken(userId: string): string {
+  const payload: RefreshPayload = { userId };
+  return jwt.sign(payload, env.REFRESH_TOKEN_SECRET, { expiresIn: REFRESH_TOKEN_TTL });
+}
+
+export async function authenticate(email: string, password: string): Promise<{ accessToken: string; refreshToken: string; role: Role } | null> {
+  const user = await findUserByEmail(email.toLowerCase());
+  if (!user) return null;
+  if (!comparePassword(password, user.passwordHash)) return null;
+  const role = user.role === 'admin' ? 'admin' : 'user';
+  return {
+    accessToken: signAccessToken({ id: user.id, email: user.email, role }),
+    refreshToken: signRefreshToken(user.id),
+    role,
+  };
+}
+
+export async function issueTokens(userId: string): Promise<{ accessToken: string; refreshToken: string; role: Role }> {
+  const user = await getUserById(userId);
+  const role = user?.role === 'admin' ? 'admin' : 'user';
+  return {
+    accessToken: signAccessToken({ id: userId, email: user?.email ?? '', role }),
+    refreshToken: signRefreshToken(userId),
+    role,
+  };
 }
 
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {

@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { GraduationCap, Lock, LogIn, AlertCircle, User, Shield, Eye, EyeOff } from 'lucide-react';
-import { login, Role } from '../api';
+import { Link, useNavigate } from 'react-router-dom';
+import { GraduationCap, Lock, LogIn, AlertCircle, Mail, Eye, EyeOff } from 'lucide-react';
+import { login } from '../api';
 import { toast } from 'react-hot-toast';
 
 export default function Login() {
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<Role>('user');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -14,15 +14,15 @@ export default function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!password.trim()) { setError('Введите пароль'); return; }
+    if (!email.trim() || !password.trim()) { setError('Введите email и пароль'); return; }
     try {
       setLoading(true);
       setError('');
-      const result = await login(password, role);
-      toast.success(`Вход как ${result.role === 'admin' ? 'администратор' : 'пользователь'}`);
+      const result = await login(email, password);
+      toast.success(`Вход выполнен`);
       navigate(result.role === 'admin' ? '/admin' : '/');
     } catch (err: any) {
-      setError(err.message || 'Неверный пароль');
+      setError(err.message || 'Неверный email или пароль');
     } finally {
       setLoading(false);
     }
@@ -48,32 +48,17 @@ export default function Login() {
           )}
 
           <div className="mb-4">
-            <label className="label">Роль</label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setRole('user')}
-                className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 transition-all text-sm font-medium ${
-                  role === 'user'
-                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
-                    : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
-                }`}
-              >
-                <User className="w-4 h-4" />
-                Пользователь
-              </button>
-              <button
-                type="button"
-                onClick={() => setRole('admin')}
-                className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 transition-all text-sm font-medium ${
-                  role === 'admin'
-                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
-                    : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
-                }`}
-              >
-                <Shield className="w-4 h-4" />
-                Администратор
-              </button>
+            <label className="label">Email</label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); setError(''); }}
+                className="input pl-10"
+                placeholder="user@example.com"
+                autoFocus
+              />
             </div>
           </div>
 
@@ -87,7 +72,6 @@ export default function Login() {
                 onChange={(e) => { setPassword(e.target.value); setError(''); }}
                 className="input pl-10 pr-10"
                 placeholder="Введите пароль"
-                autoFocus
               />
               <button
                 type="button"
@@ -113,9 +97,15 @@ export default function Login() {
           </button>
         </form>
 
+        <p className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
+          Нет аккаунта?{' '}
+          <Link to="/register" className="text-primary-600 hover:text-primary-700 font-medium">
+            Зарегистрироваться
+          </Link>
+        </p>
+
         <div className="mt-4 p-3 rounded-lg bg-gray-100 dark:bg-gray-800 text-xs text-gray-500 space-y-1">
-          <p><strong>Пользователь:</strong> user123</p>
-          <p><strong>Администратор:</strong> admin123</p>
+          <p>Для регистрации нового аккаунта перейдите по ссылке выше.</p>
         </div>
       </div>
     </div>

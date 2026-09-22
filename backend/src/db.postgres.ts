@@ -1,9 +1,9 @@
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { eq, sql, like, or, and, count, avg, desc, asc } from 'drizzle-orm';
-import { students, auditLog } from './schema.js';
+import { students, auditLog, users } from './schema.js';
 import { env } from './env.js';
-import type { Student } from './db.js';
+import type { Student, UserRecord } from './db.js';
 
 const client = postgres(env.DATABASE_URL);
 const db = drizzle(client);
@@ -153,4 +153,40 @@ export async function getAuditLogs(page: number = 1, limit: number = 50, entity?
   const offset = (page - 1) * limit;
   const data = await db.select().from(auditLog).where(whereClause).orderBy(desc(auditLog.createdAt)).limit(limit).offset(offset);
   return { data, total };
+}
+
+export async function findUserByEmail(email: string): Promise<UserRecord | undefined> {
+  const rows = await db.select().from(users).where(eq(users.email, email));
+  return rows[0] as unknown as UserRecord | undefined;
+}
+
+export async function getUserById(id: string): Promise<UserRecord | undefined> {
+  const rows = await db.select().from(users).where(eq(users.id, id));
+  return rows[0] as unknown as UserRecord | undefined;
+}
+
+export async function createUser(data: { email: string; passwordHash: string; fullName: string; role?: string; avatar?: string | null; phone?: string | null }): Promise<UserRecord> {
+  const id = crypto.randomUUID();
+  const now = new Date();
+  const inserted = await db.insert(users).values({
+    id, email: data.email, passwordHash: data.passwordHash, fullName: data.fullName,
+    role: data.role ?? 'user', avatar: data.avatar ?? null, phone: data.phone ?? null,
+    createdAt: now, updatedAt: now,
+  }).returning();
+  return inserted[0] as unknown as UserRecord;
+}
+
+export async function updateUser(id: string, data: { fullName?: string; avatar?: string | null; phone?: string | null }): Promise<UserRecord | null> {
+  const rows = await db.update(users).set({ ...data, updatedAt: new Date() }).where(eq(users.id, id)).returning();
+  return (rows[0] as unknown as UserRecord) ?? null;
+}
+
+export async function updateUserPassword(id: string, passwordHash: string): Promise<boolean> {
+  const rows = await db.update(users).set({ passwordHash, updatedAt: new Date() }).where(eq(users.id, id)).returning();
+  return rows.length > 0;
+}
+
+export async function getAllUsers(): Promise<UserRecord[]> {
+  const rows = await db.select().from(users).orderBy(desc(users.createdAt));
+  return rows as unknown as UserRecord[];
 }

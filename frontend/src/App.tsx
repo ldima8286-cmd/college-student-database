@@ -4,6 +4,9 @@ import { isAuthenticated, isAdmin } from './api';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import AdminPanel from './pages/AdminPanel';
+import AuditLog from './pages/AuditLog';
+import Profile from './pages/Profile';
+import Register from './pages/Register';
 
 function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
   if (!isAuthenticated()) return <Navigate to="/login" replace />;
@@ -22,8 +25,17 @@ export default function App() {
         <Route path="/login" element={
           isAuthenticated() ? <Navigate to={isAdmin() ? '/admin' : '/'} replace /> : <Login />
         } />
+        <Route path="/register" element={
+          isAuthenticated() ? <Navigate to={isAdmin() ? '/admin' : '/'} replace /> : <Register />
+        } />
         <Route path="/admin" element={
           <ProtectedRoute adminOnly><AdminPanel /></ProtectedRoute>
+        } />
+        <Route path="/admin/audit" element={
+          <ProtectedRoute adminOnly><AuditLog /></ProtectedRoute>
+        } />
+        <Route path="/admin/profile" element={
+          <ProtectedRoute><Profile /></ProtectedRoute>
         } />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

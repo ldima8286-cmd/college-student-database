@@ -1,6 +1,18 @@
-import { pgTable, uuid, text, integer, real, boolean, timestamp, serial, jsonb, check } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, integer, real, boolean, timestamp, serial, jsonb, check, unique } from 'drizzle-orm/pg-core';
 import { type InferSelectModel, type InferInsertModel } from 'drizzle-orm';
 import { sql } from 'drizzle-orm';
+
+export const users = pgTable('users', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  email: text('email').notNull().unique(),
+  passwordHash: text('password_hash').notNull(),
+  fullName: text('full_name').notNull(),
+  role: text('role').notNull().default('user'),
+  avatar: text('avatar'),
+  phone: text('phone'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
 
 export const students = pgTable('students', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -31,3 +43,5 @@ export const auditLog = pgTable('audit_log', {
 
 export type Student = InferSelectModel<typeof students>;
 export type NewStudent = InferInsertModel<typeof students>;
+export type User = InferSelectModel<typeof users>;
+export type NewUser = InferInsertModel<typeof users>;

@@ -3,18 +3,21 @@ import { Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import {
   GraduationCap, LogOut, Home, Users, AlertTriangle, BarChart3,
-  TrendingUp, BookOpen, LayoutGrid, Table, ChevronLeft, ChevronRight,
+  TrendingUp, BookOpen, LayoutGrid, Table,
   Plus, Pencil, Trash2, ToggleLeft, ToggleRight, Search, X,
-  Shield, Activity, Clock, Database,
+  Shield, Activity, Clock, Database, FileText, User,
 } from 'lucide-react';
 import { Student, SortField, SortOrder, ViewMode } from '../types';
-import { getStudents, deleteStudent, toggleDebt, deleteAllStudents, getStats, logout, getAnalytics } from '../api';
+import { getStudents, deleteStudent, toggleDebt, deleteAllStudents, getStats, logout, getAnalytics, batchDeleteStudents, batchExportStudents } from '../api';
 import StudentForm from '../components/StudentForm';
 import StudentTable from '../components/StudentTable';
 import StudentCards from '../components/StudentCards';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ThemeToggle from '../components/ThemeToggle';
 import ImportExport from '../components/ImportExport';
+import BatchActions from '../components/BatchActions';
+import Pagination from '../components/Pagination';
+import PdfExport from '../components/PdfExport';
 
 export default function AdminPanel() {
   const [students, setStudents] = useState<Student[]>([]);
@@ -33,6 +36,7 @@ export default function AdminPanel() {
   const [showForm, setShowForm] = useState(false);
   const [stats, setStats] = useState<any>(null);
   const [analytics, setAnalytics] = useState<any>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean; title: string; message: string; onConfirm: () => void; variant?: 'danger' | 'warning';
   }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
@@ -107,7 +111,27 @@ export default function AdminPanel() {
   const handleLogout = async () => {
     await logout();
     toast.success('Вы вышли');
-    window.location.href = '/admin/login';
+    window.location.href = '/login';
+  };
+
+  const handleBatchDelete = async (ids: string[]) => {
+    try {
+      await batchDeleteStudents(ids);
+      toast.success(`Удалено ${ids.length} записей`);
+      setSelectedIds([]);
+      loadData();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  const handleBatchExport = async (ids: string[]) => {
+    try {
+      const data = await batchExportStudents(ids);
+      toast.success(`Экспортировано ${data.length} записей`);
+    } catch (err: any) {
+      toast.error(err.message);
+    }
   };
 
   const handleSort = (field: SortField) => {
@@ -136,6 +160,12 @@ export default function AdminPanel() {
             </div>
             <div className="flex items-center gap-2">
               <ThemeToggle />
+              <Link to="/admin/audit" className="btn btn-ghost text-sm flex items-center gap-1">
+                <FileText className="w-4 h-4" /> <span className="hidden sm:inline">Аудит</span>
+              </Link>
+              <Link to="/admin/profile" className="btn btn-ghost text-sm flex items-center gap-1">
+                <User className="w-4 h-4" />
+              </Link>
               <Link to="/" className="btn btn-ghost text-sm flex items-center gap-1">
                 <Home className="w-4 h-4" /> <span className="hidden sm:inline">Сайт</span>
               </Link>
@@ -204,6 +234,7 @@ export default function AdminPanel() {
 
           <div className="flex items-center gap-2 flex-wrap">
             <ImportExport onImportComplete={loadData} />
+            <PdfExport students={students} />
             <select value={filterCourse ?? ''} onChange={(e) => { setFilterCourse(e.target.value ? Number(e.target.value) : undefined); setPage(1); }} className="input w-auto">
               <option value="">Все курсы</option>
               {[1, 2, 3, 4, 5, 6].map((c) => <option key={c} value={c}>{c} курс</option>)}
@@ -251,6 +282,14 @@ export default function AdminPanel() {
           Найдено: {total} {total === 1 ? 'студент' : total < 5 ? 'студента' : 'студентов'}
         </div>
 
+        <BatchActions
+          students={students}
+          onBatchDelete={handleBatchDelete}
+          onBatchExport={handleBatchExport}
+          selectedIds={selectedIds}
+          setSelectedIds={setSelectedIds}
+        />
+
         {/* Table / Cards */}
         {loading ? (
           <div className="flex items-center justify-center py-20">
@@ -276,18 +315,7 @@ export default function AdminPanel() {
           />
         )}
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="mt-6 flex items-center justify-center gap-2">
-            <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1} className="btn btn-secondary disabled:opacity-30">
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400">{page} / {totalPages}</span>
-            <button onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page === totalPages} className="btn btn-secondary disabled:opacity-30">
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        )}
+        <Pagination page={page} totalPages={totalPages} total={total} onPageChange={setPage} />
 
         {/* Analytics section */}
         {analytics && (

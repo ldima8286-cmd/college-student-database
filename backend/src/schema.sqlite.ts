@@ -1,6 +1,18 @@
 import { sqliteTable, text, integer, real, check } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
+export const users = sqliteTable('users', {
+  id: text('id').primaryKey(),
+  email: text('email').notNull().unique(),
+  passwordHash: text('passwordHash').notNull(),
+  fullName: text('fullName').notNull(),
+  role: text('role').notNull().default('user'),
+  avatar: text('avatar'),
+  phone: text('phone'),
+  createdAt: text('createdAt').notNull(),
+  updatedAt: text('updatedAt').notNull(),
+});
+
 export const students = sqliteTable('students', {
   id: text('id').primaryKey(),
   fullName: text('fullName').notNull(),

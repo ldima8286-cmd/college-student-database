@@ -3,7 +3,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { eq, like, or, and, sql, count, desc, asc } from 'drizzle-orm';
 import * as schema from './schema.sqlite.js';
 import { env } from './env.js';
-import type { Student } from './db.js';
+import type { Student, UserRecord } from './db.js';
 import { logAudit as _logAudit, getAuditLogs as _getAuditLogs } from './audit.sqlite.js';
 
 const sqliteDb: DatabaseType = new Database(env.DATABASE_URL.replace('sqlite:', ''));
@@ -34,6 +34,20 @@ sqliteDb.exec(`
     userId TEXT,
     details TEXT,
     createdAt TEXT NOT NULL
+  )
+`);
+
+sqliteDb.exec(`
+  CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    email TEXT NOT NULL UNIQUE,
+    passwordHash TEXT NOT NULL,
+    fullName TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'user',
+    avatar TEXT,
+    phone TEXT,
+    createdAt TEXT NOT NULL,
+    updatedAt TEXT NOT NULL
   )
 `);
 
@@ -176,4 +190,50 @@ export async function logAudit(action: string, entity: string, entityId?: string
 
 export async function getAuditLogs(page: number = 1, limit: number = 50, entity?: string, action?: string) {
   return _getAuditLogs(sqliteDb, page, limit, entity, action);
+}
+
+export async function findUserByEmail(email: string): Promise<UserRecord | undefined> {
+  const row = sqliteDb.prepare('SELECT * FROM users WHERE email = ?').get(email) as any;
+  return row ? { ...row } : undefined;
+}
+
+export async function getUserById(id: string): Promise<UserRecord | undefined> {
+  const row = sqliteDb.prepare('SELECT * FROM users WHERE id = ?').get(id) as any;
+  return row ? { ...row } : undefined;
+}
+
+export async function createUser(data: { email: string; passwordHash: string; fullName: string; role?: string; avatar?: string | null; phone?: string | null }): Promise<UserRecord> {
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  sqliteDb.prepare(
+    `INSERT INTO users (id, email, passwordHash, fullName, role, avatar, phone, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(id, data.email.toLowerCase(), data.passwordHash, data.fullName, data.role ?? 'user', data.avatar ?? null, data.phone ?? null, now, now);
+  return (await findUserByEmail(data.email.toLowerCase()))!;
+}
+
+export async function updateUser(id: string, data: { fullName?: string; avatar?: string | null; phone?: string | null }): Promise<UserRecord | null> {
+  const existing = sqliteDb.prepare('SELECT * FROM users WHERE id = ?').get(id) as any;
+  if (!existing) return null;
+  const updated = {
+    fullName: data.fullName ?? existing.fullName,
+    avatar: data.avatar !== undefined ? data.avatar : existing.avatar,
+    phone: data.phone !== undefined ? data.phone : existing.phone,
+    updatedAt: new Date().toISOString(),
+  };
+  sqliteDb.prepare('UPDATE users SET fullName = ?, avatar = ?, phone = ?, updatedAt = ? WHERE id = ?')
+    .run(updated.fullName, updated.avatar, updated.phone, updated.updatedAt, id);
+  const row = sqliteDb.prepare('SELECT * FROM users WHERE id = ?').get(id) as any;
+  return row ? { ...row } : null;
+}
+
+export async function updateUserPassword(id: string, passwordHash: string): Promise<boolean> {
+  const result = sqliteDb.prepare('UPDATE users SET passwordHash = ?, updatedAt = ? WHERE id = ?')
+    .run(passwordHash, new Date().toISOString(), id);
+  return result.changes > 0;
+}
+
+export async function getAllUsers(): Promise<UserRecord[]> {
+  const rows = sqliteDb.prepare('SELECT * FROM users ORDER BY createdAt DESC').all() as any[];
+  return rows.map(r => ({ ...r }));
 }

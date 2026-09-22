@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   GraduationCap, Search, LogOut, Table, LayoutGrid,
-  ChevronLeft, ChevronRight, BookOpen, LogIn,
+  BookOpen, LogIn, User,
 } from 'lucide-react';
 import { Student, SortField, SortOrder, ViewMode } from '../types';
 import { getStudents, getStats, toggleDebt, getRole, logout, isAdmin } from '../api';
@@ -12,6 +12,8 @@ import StudentCards from '../components/StudentCards';
 import StatsPanel from '../components/StatsPanel';
 import ThemeToggle from '../components/ThemeToggle';
 import ImportExport from '../components/ImportExport';
+import Pagination from '../components/Pagination';
+import PdfExport from '../components/PdfExport';
 
 export default function Dashboard() {
   const [students, setStudents] = useState<Student[]>([]);
@@ -101,6 +103,11 @@ export default function Dashboard() {
             <div className="flex items-center gap-2">
               <ThemeToggle />
               {isUserAdmin && (
+                <Link to="/admin/profile" className="btn btn-ghost text-sm flex items-center gap-1">
+                  <User className="w-4 h-4" />
+                </Link>
+              )}
+              {isUserAdmin && (
                 <Link to="/admin" className="btn btn-primary text-sm">
                   Управление
                 </Link>
@@ -117,8 +124,9 @@ export default function Dashboard() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <StatsPanel stats={stats} />
 
-        <div className="mb-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="mb-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
           <ImportExport onImportComplete={loadData} />
+          <PdfExport students={students} />
           <div className="card">
             <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-3">Курс</h3>
             <div className="flex flex-wrap gap-2">
@@ -203,17 +211,7 @@ export default function Dashboard() {
           />
         )}
 
-        {totalPages > 1 && (
-          <div className="mt-6 flex items-center justify-center gap-2">
-            <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1} className="btn btn-secondary disabled:opacity-30">
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400">{page} / {totalPages}</span>
-            <button onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page === totalPages} className="btn btn-secondary disabled:opacity-30">
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        )}
+        <Pagination page={page} totalPages={totalPages} total={total} onPageChange={setPage} />
       </main>
     </div>
   );

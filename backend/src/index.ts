@@ -7,6 +7,7 @@ import { router } from './routes.js';
 import { setupSwagger } from './swagger.js';
 import { logger } from './logger.js';
 import { initDb } from './db.js';
+import { seedUsers } from './seed.js';
 
 const app = express();
 
@@ -71,6 +72,7 @@ async function start() {
     if (!fs.existsSync('logs')) fs.mkdirSync('logs');
 
     await initDb();
+    await seedUsers();
     logger.info('Database connected');
 
     const server = app.listen(env.PORT, () => {
