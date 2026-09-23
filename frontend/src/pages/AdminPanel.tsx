@@ -2,10 +2,10 @@ import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import {
-  GraduationCap, LogOut, Home, Users, AlertTriangle, BarChart3,
+  LogOut, Home, Users, AlertTriangle, BarChart3,
   TrendingUp, BookOpen, LayoutGrid, Table,
-  Plus, Pencil, Trash2, ToggleLeft, ToggleRight, Search, X,
-  Shield, Activity, Clock, Database, FileText, User, CheckCircle2,
+  Plus, Pencil, Trash2, Search, X,
+  Shield, Activity, Clock, FileText, User, CheckCircle2,
 } from 'lucide-react';
 import { Student, SortField, SortOrder, ViewMode } from '../types';
 import { getStudents, deleteStudent, toggleDebt, deleteAllStudents, getStats, logout, getAnalytics, batchDeleteStudents, batchExportStudents, batchUpdateStudents, approveStudent } from '../api';
@@ -50,27 +50,41 @@ export default function AdminPanel() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  const loadData = useCallback(async () => {
+  const loadStats = useCallback(async () => {
     try {
-      setLoading(true);
-      const [res, s, a] = await Promise.all([
-        getStudents({ search: debouncedSearch, page, limit: 20, sortBy, sortOrder, filterDebt, filterCourse, status: filterStatus || undefined }),
+      const [s, a] = await Promise.all([
         getStats(),
         getAnalytics().catch(() => null),
       ]);
+      setStats(s);
+      setAnalytics(a);
+    } catch {
+      /* stats optional */
+    }
+  }, []);
+
+  useEffect(() => { loadStats(); }, [loadStats]);
+
+  const loadData = useCallback(async (signal?: AbortSignal) => {
+    try {
+      setLoading(true);
+      const res = await getStudents({ search: debouncedSearch, page, limit: 20, sortBy, sortOrder, filterDebt, filterCourse, status: filterStatus || undefined, signal });
       setStudents(res.data);
       setTotal(res.total);
       setTotalPages(res.totalPages);
-      setStats(s);
-      setAnalytics(a);
     } catch (err: any) {
+      if (err.name === 'CanceledError' || (signal && signal.aborted)) return;
       toast.error(err.message);
     } finally {
       setLoading(false);
     }
   }, [debouncedSearch, page, sortBy, sortOrder, filterDebt, filterCourse, filterStatus]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    const controller = new AbortController();
+    loadData(controller.signal);
+    return () => controller.abort();
+  }, [loadData]);
 
   const loadPending = useCallback(async () => {
     try {
@@ -86,7 +100,7 @@ export default function AdminPanel() {
 
   useEffect(() => { loadPending(); }, [loadPending]);
 
-  const refreshAll = () => { loadData(); loadPending(); };
+  const refreshAll = () => { loadData(); loadPending(); loadStats(); };
 
   const handleApprove = async (student: Student) => {
     try {
@@ -105,7 +119,7 @@ export default function AdminPanel() {
         try {
           await deleteStudent(student.id);
           toast.success('Студент удалён');
-          loadData();
+          loadData(); loadStats();
           if (editingStudent?.id === student.id) { setEditingStudent(null); setShowForm(false); }
         } catch (err: any) { toast.error(err.message); }
       },
@@ -116,7 +130,7 @@ export default function AdminPanel() {
     try {
       await toggleDebt(student.id);
       toast.success(student.academicDebt ? 'Задолженность снята' : 'Задолженность добавлена');
-      loadData();
+      loadData(); loadStats();
     } catch (err: any) { toast.error(err.message); }
   };
 
@@ -129,7 +143,7 @@ export default function AdminPanel() {
         try {
           const count = await deleteAllStudents();
           toast.success(`Удалено ${count} записей`);
-          loadData();
+          loadData(); loadStats();
           setEditingStudent(null); setShowForm(false);
         } catch (err: any) { toast.error(err.message); }
       },
@@ -147,7 +161,7 @@ export default function AdminPanel() {
       await batchDeleteStudents(ids);
       toast.success(`Удалено ${ids.length} записей`);
       setSelectedIds([]);
-      loadData();
+      loadData(); loadStats();
     } catch (err: any) {
       toast.error(err.message);
     }
@@ -167,7 +181,7 @@ export default function AdminPanel() {
       const updated = await batchUpdateStudents(ids, patch);
       toast.success(`Обновлено ${updated} записей`);
       setSelectedIds([]);
-      loadData();
+      loadData(); loadStats();
     } catch (err: any) {
       toast.error(err.message);
     }
@@ -366,7 +380,7 @@ export default function AdminPanel() {
           <div className="mb-6 animate-slide-down">
             <StudentForm
               editingStudent={editingStudent}
-              onSuccess={() => { loadData(); setEditingStudent(null); setShowForm(false); }}
+              onSuccess={() => { loadData(); loadStats(); setEditingStudent(null); setShowForm(false); }}
               onCancel={() => { setEditingStudent(null); setShowForm(false); }}
             />
           </div>

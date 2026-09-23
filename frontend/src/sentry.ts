@@ -1,7 +1,6 @@
-import * as Sentry from '@sentry/react';
-
-export function initSentry(dsn: string | undefined) {
+export async function initSentry(dsn: string | undefined) {
   if (!dsn) return;
+  const Sentry = await import('@sentry/react');
   Sentry.init({
     dsn,
     integrations: [Sentry.browserTracingIntegration()],

@@ -35,14 +35,6 @@ export default function BatchActions({ students, onBatchDelete, onBatchExport, o
     }
   };
 
-  const toggleOne = (id: string) => {
-    if (selectedIds.includes(id)) {
-      setSelectedIds(selectedIds.filter((i) => i !== id));
-    } else {
-      setSelectedIds([...selectedIds, id]);
-    }
-  };
-
   const handleBatchDelete = () => {
     if (selectedIds.length === 0) return;
     setConfirmOpen(true);

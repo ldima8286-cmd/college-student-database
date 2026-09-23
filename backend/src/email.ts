@@ -9,6 +9,9 @@ function getTransporter() {
     port: env.SMTP_PORT,
     secure: env.SMTP_PORT === 465,
     auth: env.SMTP_USER ? { user: env.SMTP_USER, pass: env.SMTP_PASS } : undefined,
+    connectionTimeout: 5000,
+    greetingTimeout: 5000,
+    socketTimeout: 5000,
   });
 }
 

@@ -1,7 +1,4 @@
 import Database, { type Database as DatabaseType } from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { eq, like, or, and, sql, count, desc, asc } from 'drizzle-orm';
-import * as schema from './schema.sqlite.js';
 import { env } from './env.js';
 import type { Student, UserRecord } from './db.js';
 import { logAudit as _logAudit, getAuditLogs as _getAuditLogs } from './audit.sqlite.js';
@@ -69,17 +66,22 @@ sqliteDb.exec(`
   )
 `);
 
-const db = drizzle(sqliteDb, { schema });
-
 export const rawDb: DatabaseType = sqliteDb;
 
 export async function ensureSchema(): Promise<void> {
-  return;
+  sqliteDb.exec(`
+    CREATE INDEX IF NOT EXISTS idx_students_status ON students(status);
+    CREATE INDEX IF NOT EXISTS idx_students_course ON students(course);
+    CREATE INDEX IF NOT EXISTS idx_students_group ON students("group");
+    CREATE INDEX IF NOT EXISTS idx_students_filters ON students(academicDebt);
+    CREATE INDEX IF NOT EXISTS idx_students_email ON students(email);
+    CREATE INDEX IF NOT EXISTS idx_students_user_id ON students(userId);
+    CREATE INDEX IF NOT EXISTS idx_students_created_at ON students(createdAt);
+    CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON auditLog(createdAt);
+  `);
 }
 
 type SortOrder = 'asc' | 'desc';
-const studentsTable = schema.students;
-const auditTable = schema.auditLog;
 
 export async function getAllStudents(
   search?: string, page: number = 1, limit: number = 50,
@@ -182,6 +184,40 @@ export async function toggleDebt(id: string): Promise<Student | null> {
 
 export async function deleteAllStudents(): Promise<number> {
   const result = sqliteDb.prepare('DELETE FROM students').run();
+  return result.changes;
+}
+
+export async function getStudentsByIds(ids: string[]): Promise<Student[]> {
+  if (ids.length === 0) return [];
+  const placeholders = ids.map(() => '?').join(',');
+  const rows = sqliteDb.prepare(`SELECT * FROM students WHERE id IN (${placeholders})`).all(...ids) as any[];
+  return rows.map(r => ({ ...r, academicDebt: r.academicDebt === 1 }));
+}
+
+export async function deleteStudentsByIds(ids: string[]): Promise<number> {
+  if (ids.length === 0) return 0;
+  const placeholders = ids.map(() => '?').join(',');
+  const result = sqliteDb.prepare(`DELETE FROM students WHERE id IN (${placeholders})`).run(...ids);
+  return result.changes;
+}
+
+export async function updateStudentsByIds(
+  ids: string[],
+  data: Partial<Omit<Student, 'id' | 'createdAt' | 'updatedAt'>>
+): Promise<number> {
+  if (ids.length === 0) return 0;
+  const sets: string[] = [];
+  const params: any[] = [];
+  for (const [key, value] of Object.entries(data)) {
+    const col = key === 'group' ? '"group"' : key;
+    sets.push(`${col} = ?`);
+    params.push(key === 'academicDebt' ? (value ? 1 : 0) : value === undefined ? null : value);
+  }
+  if (sets.length === 0) return 0;
+  sets.push('updatedAt = ?');
+  params.push(new Date().toISOString());
+  const placeholders = ids.map(() => '?').join(',');
+  const result = sqliteDb.prepare(`UPDATE students SET ${sets.join(', ')} WHERE id IN (${placeholders})`).run(...params, ...ids);
   return result.changes;
 }
 

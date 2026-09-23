@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real, check } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real, check, index } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
 export const users = sqliteTable('users', {
@@ -32,6 +32,13 @@ export const students = sqliteTable('students', {
   check('course_check', sql`${t.course} >= 1 AND ${t.course} <= 6`),
   check('attendance_check', sql`${t.attendance} >= 0 AND ${t.attendance} <= 100`),
   check('performance_check', sql`${t.performance} >= 0 AND ${t.performance} <= 5`),
+  index('idx_students_status').on(t.status),
+  index('idx_students_course').on(t.course),
+  index('idx_students_group').on(t.group),
+  index('idx_students_filters').on(t.academicDebt),
+  index('idx_students_email').on(t.email),
+  index('idx_students_user_id').on(t.userId),
+  index('idx_students_created_at').on(t.createdAt),
 ]);
 
 export const auditLog = sqliteTable('auditLog', {
@@ -42,4 +49,6 @@ export const auditLog = sqliteTable('auditLog', {
   userId: text('userId'),
   details: text('details'),
   createdAt: text('createdAt').notNull(),
-});
+}, (t) => [
+  index('idx_audit_log_created_at').on(t.createdAt),
+]);

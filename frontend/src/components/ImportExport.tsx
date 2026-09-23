@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react';
-import { Download, Upload, FileJson, FileSpreadsheet, Loader2, X, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import * as XLSX from 'xlsx';
+import { Upload, FileJson, FileSpreadsheet, Loader2, X, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { Student } from '../types';
 import { createStudent, getStudents } from '../api';
 import { toast } from 'react-hot-toast';
@@ -57,6 +56,7 @@ export default function ImportExport({ onImportComplete }: Props) {
         'Успеваемость (0-5)': s.performance,
         'Задолженность': s.academicDebt ? 'Да' : 'Нет',
       }));
+      const XLSX = await import('xlsx');
       const ws = XLSX.utils.json_to_sheet(rows);
       ws['!cols'] = [
         { wch: 30 }, { wch: 6 }, { wch: 10 }, { wch: 25 }, { wch: 25 }, { wch: 16 }, { wch: 14 }, { wch: 16 }, { wch: 14 },
@@ -165,6 +165,7 @@ export default function ImportExport({ onImportComplete }: Props) {
     if (!file) return;
     try {
       const buffer = await file.arrayBuffer();
+      const XLSX = await import('xlsx');
       const wb = XLSX.read(buffer, { type: 'buffer' });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const data = XLSX.utils.sheet_to_json(ws);

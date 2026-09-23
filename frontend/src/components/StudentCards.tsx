@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Student } from '../types';
 import { Pencil, Trash2, CheckCircle, AlertTriangle } from 'lucide-react';
 
@@ -21,7 +22,7 @@ const performanceColor = (perf: number) => {
   return 'text-red-600 dark:text-red-400';
 };
 
-export default function StudentCards({ students, onEdit, onDelete, onToggleDebt, readOnly }: Props) {
+export default memo(function StudentCards({ students, onEdit, onDelete, onToggleDebt, readOnly }: Props) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {students.map((student) => (
@@ -101,4 +102,4 @@ export default function StudentCards({ students, onEdit, onDelete, onToggleDebt,
       ))}
     </div>
   );
-}
+});

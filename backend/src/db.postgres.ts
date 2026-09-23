@@ -1,6 +1,6 @@
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
-import { eq, sql, like, or, and, count, avg, desc, asc } from 'drizzle-orm';
+import { eq, sql, like, or, and, count, avg, desc, asc, inArray } from 'drizzle-orm';
 import { students, auditLog, users } from './schema.js';
 import { env } from './env.js';
 import type { Student, UserRecord } from './db.js';
@@ -50,6 +50,14 @@ export async function ensureSchema(): Promise<void> {
       details JSONB,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
+    CREATE INDEX IF NOT EXISTS idx_students_status ON students(status);
+    CREATE INDEX IF NOT EXISTS idx_students_course ON students(course);
+    CREATE INDEX IF NOT EXISTS idx_students_group ON students("group");
+    CREATE INDEX IF NOT EXISTS idx_students_filters ON students(academic_debt);
+    CREATE INDEX IF NOT EXISTS idx_students_email ON students(email);
+    CREATE INDEX IF NOT EXISTS idx_students_user_id ON students(user_id);
+    CREATE INDEX IF NOT EXISTS idx_students_created_at ON students(created_at);
+    CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON audit_log(created_at);
   `);
 }
 
@@ -147,6 +155,34 @@ export async function toggleDebt(id: string): Promise<Student | null> {
 
 export async function deleteAllStudents(): Promise<number> {
   const rows = await db.delete(students).returning();
+  return rows.length;
+}
+
+export async function getStudentsByIds(ids: string[]): Promise<Student[]> {
+  if (ids.length === 0) return [];
+  const rows = await db.select().from(students).where(inArray(students.id, ids));
+  return rows as unknown as Student[];
+}
+
+export async function deleteStudentsByIds(ids: string[]): Promise<number> {
+  if (ids.length === 0) return 0;
+  const rows = await db.delete(students).where(inArray(students.id, ids)).returning();
+  return rows.length;
+}
+
+export async function updateStudentsByIds(
+  ids: string[],
+  data: Partial<Omit<Student, 'id' | 'createdAt' | 'updatedAt'>>
+): Promise<number> {
+  if (ids.length === 0) return 0;
+  const setData: Record<string, any> = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (key === 'updatedAt' || value === undefined) continue;
+    setData[key] = key === 'academicDebt' ? value : (value ?? null);
+  }
+  if (Object.keys(setData).length === 0) return 0;
+  setData.updatedAt = new Date();
+  const rows = await db.update(students).set(setData).where(inArray(students.id, ids)).returning();
   return rows.length;
 }
 

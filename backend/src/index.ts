@@ -45,7 +45,7 @@ const limiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
-    if (req.url === '/api/health' || req.url === '/favicon.ico') return true;
+    if (req.path === '/health') return true;
     if (req.method === 'GET') return true;
     return req.method === 'HEAD' || req.method === 'OPTIONS';
   },

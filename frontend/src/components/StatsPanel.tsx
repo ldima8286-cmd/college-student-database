@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { StudentStats } from '../types';
 import { Users, AlertTriangle, Activity, TrendingUp } from 'lucide-react';
 
@@ -5,7 +6,7 @@ interface Props {
   stats: StudentStats | null;
 }
 
-export default function StatsPanel({ stats }: Props) {
+export default memo(function StatsPanel({ stats }: Props) {
   if (!stats) return null;
 
   const mainStats = [
@@ -73,4 +74,4 @@ export default function StatsPanel({ stats }: Props) {
       )}
     </div>
   );
-}
+});

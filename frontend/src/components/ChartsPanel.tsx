@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { BarChart3, TrendingUp, Activity } from 'lucide-react';
 import { StudentStats } from '../types';
 
@@ -5,7 +6,7 @@ interface Props {
   stats: StudentStats | null;
 }
 
-export default function ChartsPanel({ stats }: Props) {
+export default memo(function ChartsPanel({ stats }: Props) {
   if (!stats || stats.byCourseStats.length === 0) return null;
 
   const courses = [...stats.byCourseStats].sort((a, b) => a.course - b.course);
@@ -82,4 +83,4 @@ export default function ChartsPanel({ stats }: Props) {
       <DebtChart />
     </div>
   );
-}
+});

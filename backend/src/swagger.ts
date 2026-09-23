@@ -1,6 +1,5 @@
 import { Express } from 'express';
 import swaggerUi from 'swagger-ui-express';
-import swaggerJsdoc from 'swagger-jsdoc';
 
 const swaggerSpec = {
   openapi: '3.0.0' as const,

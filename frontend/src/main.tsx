@@ -5,7 +5,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { initSentry } from './sentry';
 import './index.css';
 
-initSentry(import.meta.env.VITE_SENTRY_DSN);
+void initSentry(import.meta.env.VITE_SENTRY_DSN);
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

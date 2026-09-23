@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('./db.js', () => ({
   getAllStudents: vi.fn().mockResolvedValue({ students: [], total: 0 }),
@@ -19,6 +19,9 @@ vi.mock('./db.js', () => ({
   getAllUsers: vi.fn().mockResolvedValue([]),
   updateUser: vi.fn().mockResolvedValue({ id: '1' }),
   updateUserPassword: vi.fn().mockResolvedValue(true),
+  getStudentsByIds: vi.fn().mockResolvedValue([]),
+  deleteStudentsByIds: vi.fn().mockResolvedValue(0),
+  updateStudentsByIds: vi.fn().mockResolvedValue(0),
   db: { select: vi.fn().mockReturnThis(), from: vi.fn().mockReturnThis(), insert: vi.fn().mockReturnThis(), values: vi.fn().mockResolvedValue([]) },
 }));
 
@@ -131,8 +134,8 @@ describe('API Routes', () => {
 
   describe('POST /api/auth/register', () => {
     it('returns 201 even when email already exists (unified response)', async () => {
-      const { getAllUsers } = await import('./db.js');
-      (getAllUsers as any).mockResolvedValueOnce([{ id: 'existing', email: 'dup@college.local' }]);
+      const { findUserByEmail } = await import('./db.js');
+      (findUserByEmail as any).mockResolvedValueOnce({ id: 'existing', email: 'dup@college.local' });
       const res = await request(app)
         .post('/api/auth/register')
         .send({ email: 'dup@college.local', password: 'secret1', fullName: 'Dup User' });

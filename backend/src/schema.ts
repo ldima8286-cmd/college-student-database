@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, real, boolean, timestamp, serial, jsonb, check, unique } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, integer, real, boolean, timestamp, serial, jsonb, check, index } from 'drizzle-orm/pg-core';
 import { type InferSelectModel, type InferInsertModel } from 'drizzle-orm';
 import { sql } from 'drizzle-orm';
 
@@ -33,6 +33,13 @@ export const students = pgTable('students', {
   check('students_course_check', sql`${t.course} >= 1 AND ${t.course} <= 6`),
   check('students_attendance_check', sql`${t.attendance} >= 0 AND ${t.attendance} <= 100`),
   check('students_performance_check', sql`${t.performance} >= 0 AND ${t.performance} <= 5`),
+  index('idx_students_status').on(t.status),
+  index('idx_students_course').on(t.course),
+  index('idx_students_group').on(t.group),
+  index('idx_students_filters').on(t.academicDebt),
+  index('idx_students_email').on(t.email),
+  index('idx_students_user_id').on(t.userId),
+  index('idx_students_created_at').on(t.createdAt),
 ]);
 
 export const auditLog = pgTable('audit_log', {
@@ -43,7 +50,9 @@ export const auditLog = pgTable('audit_log', {
   userId: text('user_id'),
   details: jsonb('details'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [
+  index('idx_audit_log_created_at').on(t.createdAt),
+]);
 
 export type Student = InferSelectModel<typeof students>;
 export type NewStudent = InferInsertModel<typeof students>;

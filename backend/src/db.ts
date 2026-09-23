@@ -43,6 +43,9 @@ interface DbModule {
   deleteStudent(id: string): Promise<boolean>;
   toggleDebt(id: string): Promise<Student | null>;
   deleteAllStudents(): Promise<number>;
+  getStudentsByIds?(ids: string[]): Promise<Student[]>;
+  deleteStudentsByIds?(ids: string[]): Promise<number>;
+  updateStudentsByIds?(ids: string[], data: Partial<Omit<Student, 'id' | 'createdAt' | 'updatedAt'>>): Promise<number>;
   getStats(): Promise<{ total: number; withDebt: number; avgAttendance: number; avgPerformance: number; byCourse: Record<number, number>; byCourseStats: { course: number; count: number; avgPerformance: number; avgAttendance: number }[]; bySpecialty: Record<string, number> }>;
   getStudentsBySpecialty(): Promise<{ specialty: string; count: number; avgPerformance: number; avgAttendance: number }[]>;
   getStudentsByCourse(): Promise<{ course: number; count: number; withDebt: number }[]>;
@@ -97,6 +100,15 @@ export async function toggleDebt(...args: Parameters<DbModule['toggleDebt']>) {
 }
 export async function deleteAllStudents(...args: Parameters<DbModule['deleteAllStudents']>) {
   return (await getDbModule()).deleteAllStudents(...args);
+}
+export async function getStudentsByIds(...args: Parameters<NonNullable<DbModule['getStudentsByIds']>>) {
+  return (await getDbModule()).getStudentsByIds!(...args);
+}
+export async function deleteStudentsByIds(...args: Parameters<NonNullable<DbModule['deleteStudentsByIds']>>) {
+  return (await getDbModule()).deleteStudentsByIds!(...args);
+}
+export async function updateStudentsByIds(...args: Parameters<NonNullable<DbModule['updateStudentsByIds']>>) {
+  return (await getDbModule()).updateStudentsByIds!(...args);
 }
 export async function getStats(...args: Parameters<DbModule['getStats']>) {
   return (await getDbModule()).getStats(...args);

@@ -24,7 +24,7 @@ vi.mock('axios', () => ({
   },
 }));
 
-import { login, logout, getRole, isAuthenticated, isAdmin, getStudents, tryRefresh, getCookie, setCookie, clearLocalCookies } from '../api';
+import { login, getRole, isAuthenticated, isAdmin, getStudents, tryRefresh, getCookie, setCookie, clearLocalCookies } from '../api';
 
 function clearAllCookies() {
   document.cookie.split('; ').forEach((c) => {

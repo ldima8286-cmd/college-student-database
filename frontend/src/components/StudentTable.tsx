@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Student, SortField, SortOrder } from '../types';
 import { Pencil, Trash2, CheckCircle, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 
@@ -29,7 +30,7 @@ const performanceColor = (perf: number) => {
   return 'text-red-600 dark:text-red-400';
 };
 
-export default function StudentTable({ students, sortBy, sortOrder, onSort, onEdit, onDelete, onToggleDebt, readOnly }: Props) {
+export default memo(function StudentTable({ students, sortBy, sortOrder, onSort, onEdit, onDelete, onToggleDebt, readOnly }: Props) {
   const columns: { field: SortField; label: string; className?: string }[] = [
     { field: 'fullName', label: 'ФИО' },
     { field: 'course', label: 'Курс', className: 'hidden sm:table-cell' },
@@ -115,4 +116,4 @@ export default function StudentTable({ students, sortBy, sortOrder, onSort, onEd
       </div>
     </div>
   );
-}
+});

@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { GraduationCap, Mail, Send, AlertCircle, ArrowLeft } from 'lucide-react';
 import { forgotPassword } from '../api';
-import { toast } from 'react-hot-toast';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');

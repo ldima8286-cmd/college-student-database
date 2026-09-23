@@ -19,6 +19,9 @@ import {
   updateUser,
   updateUserPassword,
   findUserByEmail,
+  getStudentsByIds,
+  deleteStudentsByIds,
+  updateStudentsByIds,
 } from './db.js';
 import {
   studentSchema, studentUpdateSchema, studentSelfSchema, querySchema,
@@ -27,8 +30,8 @@ import {
   forgotPasswordSchema, resetPasswordSchema,
 } from './validation.js';
 import {
-  authenticate, requireAuth, requireAdmin, requireCsrf, getAuthInfo, Role,
-  hashPassword, comparePassword, signAccessToken,
+  authenticate, requireAuth, requireAdmin, requireCsrf, getAuthInfo,
+  hashPassword, comparePassword,
   setAuthCookies, clearAuthCookies, refreshSession,
   signResetToken, verifyResetToken,
   revokeRefreshJti, verifyRefreshToken, revokeAllRefreshTokens,
@@ -51,7 +54,7 @@ router.use(requireCsrf);
 router.post('/auth/register', async (req: Request, res: Response) => {
   try {
     const data = registerSchema.parse(req.body);
-    const existing = await getAllUsers().then((users) => users.find((u) => u.email === data.email.toLowerCase()));
+    const existing = await findUserByEmail(data.email.toLowerCase());
     if (existing) {
       res.status(201).json({ success: true, data: { id: existing.id } });
       return;
@@ -63,7 +66,7 @@ router.post('/auth/register', async (req: Request, res: Response) => {
       phone: data.phone ?? null,
     });
     logAudit('register', 'user', user.id, user.role, { email: user.email });
-    await sendWelcomeEmail(user.email, user.fullName).catch(() => {});
+    void sendWelcomeEmail(user.email, user.fullName).catch(() => {});
     res.status(201).json({ success: true, data: { id: user.id } });
   } catch (err: any) {
     if (err.name === 'ZodError') {
@@ -126,7 +129,7 @@ router.post('/auth/forgot-password', async (req: Request, res: Response) => {
     if (user) {
       const token = signResetToken(user.email);
       const resetUrl = `${env.FRONT_URL}/reset-password?token=${encodeURIComponent(token)}`;
-      await sendPasswordResetEmail(user.email, resetUrl).catch(() => {});
+      void sendPasswordResetEmail(user.email, resetUrl).catch(() => {});
       logAudit('forgot-password', 'user', user.id, user.role);
     }
     res.json({ success: true, data: null });
@@ -257,14 +260,15 @@ router.get('/students', requireAuth, async (req: Request, res: Response) => {
     const query = querySchema.parse(req.query);
     const isAdmin = req.auth?.role === 'admin';
     const status = isAdmin ? query.status : 'approved';
+    const limit = isAdmin ? query.limit : Math.min(query.limit, 200);
     const { students, total } = await getAllStudents(
-      query.search, query.page, query.limit, query.sortBy, query.sortOrder,
+      query.search, query.page, limit, query.sortBy, query.sortOrder,
       query.filterDebt, query.filterCourse, status
     );
     res.json({
       success: true, data: students, total,
-      page: query.page, limit: query.limit,
-      totalPages: Math.ceil(total / query.limit),
+      page: query.page, limit,
+      totalPages: Math.ceil(total / limit),
     });
   } catch (err: any) {
     if (err.name === 'ZodError') {
@@ -299,7 +303,7 @@ router.put('/students/me', requireAuth, async (req: Request, res: Response) => {
       });
       logAudit('update', 'student', existing.id, req.auth?.role, { fullName: existing.fullName, self: true });
       invalidateStudentsCache();
-      await triggerWebhook('student.updated', student);
+      void triggerWebhook('student.updated', student).catch(() => {});
       return res.json({ success: true, data: student });
     }
     const student = await createStudent({
@@ -317,7 +321,7 @@ router.put('/students/me', requireAuth, async (req: Request, res: Response) => {
     });
     logAudit('create', 'student', student.id, req.auth?.role, { fullName: student.fullName, self: true });
     invalidateStudentsCache();
-    await triggerWebhook('student.created', student);
+    void triggerWebhook('student.created', student).catch(() => {});
     res.status(201).json({ success: true, data: student });
   } catch (err: any) {
     if (err.name === 'ZodError') {
@@ -343,13 +347,10 @@ router.get('/students/:id', requireAuth, async (req: Request, res: Response) => 
 router.post('/students/batch-delete', requireAdmin, async (req: Request, res: Response) => {
   try {
     const { ids } = batchIdsSchema.parse(req.body);
-    let count = 0;
-    for (const id of ids) {
-      if (await deleteStudent(id)) count++;
-    }
+    const count = await deleteStudentsByIds(ids);
     logAudit('batch-delete', 'student', undefined, req.auth?.role, { deleted: count });
     invalidateStudentsCache();
-    await triggerWebhook('students.deleted', { count, ids });
+    void triggerWebhook('students.deleted', { count, ids }).catch(() => {});
     res.json({ success: true, data: { deleted: count } });
   } catch (err: any) {
     if (err.name === 'ZodError') {
@@ -364,13 +365,10 @@ router.post('/students/batch-export', requireAuth, async (req: Request, res: Res
     let result;
     if (req.body?.ids?.length) {
       const { ids } = batchIdsSchema.parse(req.body);
-      const rows = [];
-      for (const id of ids) {
-        const student = await getStudentById(id);
-        if (!student) continue;
-        if (req.auth?.role !== 'admin' && student.status === 'pending' && student.userId !== req.auth?.userId) continue;
-        rows.push(student);
-      }
+      const isAdmin = req.auth?.role === 'admin';
+      const rows = (await getStudentsByIds(ids)).filter((s) =>
+        isAdmin || s.status === 'approved' || s.userId === req.auth?.userId
+      );
       result = rows;
     } else {
       const { students } = await getAllStudents(undefined, 1, 10000, 'fullName', 'asc', undefined, undefined, req.auth?.role === 'admin' ? undefined : 'approved');
@@ -389,14 +387,10 @@ router.post('/students/batch-export', requireAuth, async (req: Request, res: Res
 router.post('/students/batch-update', requireAdmin, async (req: Request, res: Response) => {
   try {
     const { ids, patch } = batchUpdateSchema.parse(req.body);
-    let updated = 0;
-    for (const id of ids) {
-      const student = await updateStudent(id, patch);
-      if (student) updated++;
-    }
+    const updated = await updateStudentsByIds(ids, patch);
     logAudit('batch-update', 'student', undefined, req.auth?.role, { updated, fields: Object.keys(patch) });
     invalidateStudentsCache();
-    await triggerWebhook('students.updated', { count: updated, ids });
+    void triggerWebhook('students.updated', { count: updated, ids }).catch(() => {});
     res.json({ success: true, data: { updated } });
   } catch (err: any) {
     if (err.name === 'ZodError') {
@@ -412,7 +406,7 @@ router.post('/students', requireAdmin, async (req: Request, res: Response) => {
     const student = await createStudent({ ...data, email: data.email ?? null, phone: data.phone ?? null, userId: null, status: 'approved' });
     logAudit('create', 'student', student.id, req.auth?.role, { fullName: student.fullName });
     invalidateStudentsCache();
-    await triggerWebhook('student.created', student);
+    void triggerWebhook('student.created', student).catch(() => {});
     res.status(201).json({ success: true, data: student });
   } catch (err: any) {
     if (err.name === 'ZodError') {
@@ -463,7 +457,7 @@ router.put('/students/:id', requireAdmin, async (req: Request, res: Response) =>
     if (!student) return res.status(404).json({ success: false, error: 'Студент не найден' });
     logAudit('update', 'student', student.id, req.auth?.role, { fullName: student.fullName });
     invalidateStudentsCache();
-    await triggerWebhook('student.updated', student);
+    void triggerWebhook('student.updated', student).catch(() => {});
     res.json({ success: true, data: student });
   } catch (err: any) {
     if (err.name === 'ZodError') {
@@ -475,12 +469,11 @@ router.put('/students/:id', requireAdmin, async (req: Request, res: Response) =>
 
 router.delete('/students/:id', requireAdmin, async (req: Request, res: Response) => {
   try {
-    const student = await getStudentById(req.params.id);
     const deleted = await deleteStudent(req.params.id);
     if (!deleted) return res.status(404).json({ success: false, error: 'Студент не найден' });
     logAudit('delete', 'student', req.params.id, req.auth?.role);
     invalidateStudentsCache();
-    await triggerWebhook('student.deleted', { id: req.params.id, deleted });
+    void triggerWebhook('student.deleted', { id: req.params.id, deleted }).catch(() => {});
     res.status(204).send();
   } catch {
     res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
@@ -493,7 +486,7 @@ router.patch('/students/:id/toggle-debt', requireAdmin, async (req: Request, res
     if (!student) return res.status(404).json({ success: false, error: 'Студент не найден' });
     logAudit('toggle-debt', 'student', student.id, req.auth?.role, { academicDebt: student.academicDebt });
     invalidateStudentsCache();
-    await triggerWebhook('student.debt_toggled', student);
+    void triggerWebhook('student.debt_toggled', student).catch(() => {});
     res.json({ success: true, data: student });
   } catch {
     res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
@@ -507,7 +500,7 @@ router.post('/students/:id/approve', requireAdmin, async (req: Request, res: Res
     const student = await updateStudent(existing.id, { status: 'approved' });
     logAudit('approve', 'student', student!.id, req.auth?.role, { fullName: student!.fullName });
     invalidateStudentsCache();
-    await triggerWebhook('student.approved', student);
+    void triggerWebhook('student.approved', student).catch(() => {});
     res.json({ success: true, data: student });
   } catch {
     res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
@@ -519,7 +512,7 @@ router.delete('/students', requireAdmin, async (req: Request, res: Response) => 
     const count = await deleteAllStudents();
     logAudit('delete-all', 'student', undefined, req.auth?.role, { deleted: count });
     invalidateStudentsCache();
-    await triggerWebhook('students.deleted_all', { count });
+    void triggerWebhook('students.deleted_all', { count }).catch(() => {});
     res.json({ success: true, data: { deleted: count } });
   } catch {
     res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });

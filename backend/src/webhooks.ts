@@ -103,14 +103,17 @@ export async function triggerWebhook(event: string, data: any): Promise<void> {
     try {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 5000);
-      await fetch(hook.url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-        redirect: 'manual',
-      });
-      clearTimeout(timer);
+      try {
+        await fetch(hook.url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+          redirect: 'manual',
+        });
+      } finally {
+        clearTimeout(timer);
+      }
     } catch (err: any) {
       logger.error(`Webhook delivery failed to ${hook.url}: ${err.message}`);
     }

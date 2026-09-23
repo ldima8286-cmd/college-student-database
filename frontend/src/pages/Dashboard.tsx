@@ -2,10 +2,10 @@ import { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   GraduationCap, Search, LogOut, Table, LayoutGrid,
-  BookOpen, LogIn, User,
+  BookOpen, User,
 } from 'lucide-react';
 import { Student, SortField, SortOrder, ViewMode } from '../types';
-import { getStudents, getStats, toggleDebt, getRole, logout, isAdmin, getMe } from '../api';
+import { getStudents, getStats, toggleDebt, getRole, logout, getMe } from '../api';
 import { toast } from 'react-hot-toast';
 import StudentTable from '../components/StudentTable';
 import StudentCards from '../components/StudentCards';
@@ -37,26 +37,37 @@ export default function Dashboard() {
   const isUserAdmin = role === 'admin';
 
   useEffect(() => {
-    getMe().then((u) => setAvatar(u?.avatar || '')).catch(() => {});
-  }, []);
+    if (!isUserAdmin) return;
+    let cancelled = false;
+    getMe().then((u) => { if (!cancelled) setAvatar(u?.avatar || ''); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [isUserAdmin]);
 
   useEffect(() => {
     const timer = setTimeout(() => { setDebouncedSearch(searchTerm); setPage(1); }, 300);
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  const loadData = useCallback(async () => {
+  const loadStats = useCallback(async () => {
+    try {
+      const s = await getStats();
+      setStats(s);
+    } catch {
+      /* stats optional */
+    }
+  }, []);
+
+  useEffect(() => { loadStats(); }, [loadStats]);
+
+  const loadData = useCallback(async (signal?: AbortSignal) => {
     try {
       setLoading(true);
-      const [res, s] = await Promise.all([
-        getStudents({ search: debouncedSearch, page, limit: 20, sortBy, sortOrder, filterDebt, filterCourse }),
-        getStats(),
-      ]);
+      const res = await getStudents({ search: debouncedSearch, page, limit: 20, sortBy, sortOrder, filterDebt, filterCourse, signal });
       setStudents(res.data);
       setTotal(res.total);
       setTotalPages(res.totalPages);
-      setStats(s);
     } catch (err: any) {
+      if (err.name === 'CanceledError' || (signal && signal.aborted)) return;
       if (err.message.includes('авторизация') || err.message.includes('401')) {
         navigate('/login');
       } else {
@@ -67,13 +78,18 @@ export default function Dashboard() {
     }
   }, [debouncedSearch, page, sortBy, sortOrder, filterDebt, filterCourse, navigate]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    const controller = new AbortController();
+    loadData(controller.signal);
+    return () => controller.abort();
+  }, [loadData]);
 
   const handleToggleDebt = async (student: Student) => {
     try {
       await toggleDebt(student.id);
       toast.success(student.academicDebt ? 'Задолженность снята' : 'Задолженность добавлена');
       loadData();
+      loadStats();
     } catch (err: any) { toast.error(err.message); }
   };
 

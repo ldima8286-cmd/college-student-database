@@ -127,8 +127,10 @@ export function isAdmin(): boolean {
 export async function getStudents(params: {
   search?: string; page?: number; limit?: number; sortBy?: string;
   sortOrder?: 'asc' | 'desc'; filterDebt?: boolean; filterCourse?: number; status?: StudentStatus;
+  signal?: AbortSignal;
 }): Promise<PaginatedResponse> {
-  const { data } = await api.get<PaginatedResponse>('/students', { params });
+  const { signal, ...query } = params;
+  const { data } = await api.get<PaginatedResponse>('/students', { params: query, signal });
   return data;
 }
 
@@ -209,8 +211,8 @@ export async function register(data: { email: string; password: string; fullName
   if (!res.data.success) throw new Error(res.data.error || 'Ошибка регистрации');
 }
 
-export async function getMe(): Promise<any> {
-  const { data } = await api.get<ApiResponse<any>>('/auth/me');
+export async function getMe(signal?: AbortSignal): Promise<any> {
+  const { data } = await api.get<ApiResponse<any>>('/auth/me', { signal });
   if (!data.success || !data.data) throw new Error('Ошибка загрузки профиля');
   return data.data;
 }
