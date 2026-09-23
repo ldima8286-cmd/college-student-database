@@ -36,6 +36,8 @@ export async function ensureSchema(): Promise<void> {
       academic_debt BOOLEAN NOT NULL DEFAULT false,
       email TEXT,
       phone TEXT,
+      user_id UUID REFERENCES users(id),
+      status TEXT NOT NULL DEFAULT 'approved',
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
@@ -54,7 +56,7 @@ export async function ensureSchema(): Promise<void> {
 export async function getAllStudents(
   search?: string, page: number = 1, limit: number = 50,
   sortBy: string = 'fullName', sortOrder: SortOrder = 'asc',
-  filterDebt?: boolean, filterCourse?: number
+  filterDebt?: boolean, filterCourse?: number, filterStatus?: string
 ): Promise<{ students: Student[]; total: number }> {
   const allowedSorts = ['fullName', 'course', 'group', 'specialty', 'attendance', 'performance', 'createdAt'];
   const safeSortBy = allowedSorts.includes(sortBy) ? sortBy : 'fullName';
@@ -67,6 +69,7 @@ export async function getAllStudents(
   }
   if (filterDebt !== undefined) conditions.push(eq(students.academicDebt, filterDebt));
   if (filterCourse !== undefined) conditions.push(eq(students.course, filterCourse));
+  if (filterStatus !== undefined) conditions.push(eq(students.status, filterStatus));
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
   const countResult = await db.select({ count: count() }).from(students).where(whereClause);
@@ -93,6 +96,11 @@ export async function getStudentById(id: string): Promise<Student | undefined> {
   return rows[0] as unknown as Student | undefined;
 }
 
+export async function getStudentByUserId(userId: string): Promise<Student | undefined> {
+  const rows = await db.select().from(students).where(eq(students.userId, userId));
+  return rows[0] as unknown as Student | undefined;
+}
+
 export async function createStudent(data: Omit<Student, 'id' | 'createdAt' | 'updatedAt'>): Promise<Student> {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
@@ -100,6 +108,7 @@ export async function createStudent(data: Omit<Student, 'id' | 'createdAt' | 'up
     id, fullName: data.fullName, course: data.course, group: data.group,
     specialty: data.specialty, attendance: data.attendance, performance: data.performance,
     academicDebt: data.academicDebt, email: data.email ?? null, phone: data.phone ?? null,
+    userId: data.userId ?? null, status: data.status ?? 'approved',
     createdAt: new Date(now), updatedAt: new Date(now),
   }).returning();
   return inserted[0] as unknown as Student;
@@ -115,6 +124,8 @@ export async function updateStudent(id: string, data: Partial<Omit<Student, 'id'
     academicDebt: data.academicDebt ?? existing.academicDebt,
     email: data.email !== undefined ? data.email : existing.email,
     phone: data.phone !== undefined ? data.phone : existing.phone,
+    userId: data.userId !== undefined ? data.userId : existing.userId,
+    status: data.status ?? existing.status,
     updatedAt: new Date(),
   };
   const rows = await db.update(students).set(updated).where(eq(students.id, id)).returning();
@@ -140,20 +151,21 @@ export async function deleteAllStudents(): Promise<number> {
 }
 
 export async function getStats() {
-  const totalResult = await db.select({ count: count() }).from(students);
+  const approved = eq(students.status, 'approved');
+  const totalResult = await db.select({ count: count() }).from(students).where(approved);
   const total = Number(totalResult[0]?.count ?? 0);
-  const debtResult = await db.select({ count: count() }).from(students).where(eq(students.academicDebt, true));
+  const debtResult = await db.select({ count: count() }).from(students).where(and(approved, eq(students.academicDebt, true)));
   const withDebt = Number(debtResult[0]?.count ?? 0);
-  const avgResult = await db.select({ avgAttendance: avg(students.attendance), avgPerformance: avg(students.performance) }).from(students);
-  const courseRows = await db.select({ course: students.course, count: count() }).from(students).groupBy(students.course);
+  const avgResult = await db.select({ avgAttendance: avg(students.attendance), avgPerformance: avg(students.performance) }).from(students).where(approved);
+  const courseRows = await db.select({ course: students.course, count: count() }).from(students).where(approved).groupBy(students.course);
   const byCourse: Record<number, number> = {};
   for (const row of courseRows) byCourse[row.course] = Number(row.count);
   const byCourseStats = await db.select({
     course: students.course, count: count(),
     avgPerformance: sql<number>`ROUND(AVG(${students.performance}), 2)`,
     avgAttendance: sql<number>`ROUND(AVG(${students.attendance}))`,
-  }).from(students).groupBy(students.course);
-  const specialtyRows = await db.select({ specialty: students.specialty, count: count() }).from(students).groupBy(students.specialty);
+  }).from(students).where(approved).groupBy(students.course);
+  const specialtyRows = await db.select({ specialty: students.specialty, count: count() }).from(students).where(approved).groupBy(students.specialty);
   const bySpecialty: Record<string, number> = {};
   for (const row of specialtyRows) bySpecialty[row.specialty] = Number(row.count);
   return {
@@ -169,18 +181,18 @@ export async function getStudentsBySpecialty() {
     specialty: students.specialty, count: count(),
     avgPerformance: sql<number>`ROUND(AVG(${students.performance}), 2)`,
     avgAttendance: sql<number>`ROUND(AVG(${students.attendance}))`,
-  }).from(students).groupBy(students.specialty).orderBy(desc(count()));
+  }).from(students).where(eq(students.status, 'approved')).groupBy(students.specialty).orderBy(desc(count()));
 }
 
 export async function getStudentsByCourse() {
   return db.select({
     course: students.course, count: count(),
     withDebt: sql<number>`SUM(CASE WHEN ${students.academicDebt} THEN 1 ELSE 0 END)`,
-  }).from(students).groupBy(students.course).orderBy(students.course);
+  }).from(students).where(eq(students.status, 'approved')).groupBy(students.course).orderBy(students.course);
 }
 
 export async function getRecentStudents(limit: number = 5): Promise<Student[]> {
-  const rows = await db.select().from(students).orderBy(desc(students.createdAt)).limit(limit);
+  const rows = await db.select().from(students).where(eq(students.status, 'approved')).orderBy(desc(students.createdAt)).limit(limit);
   return rows as unknown as Student[];
 }
 

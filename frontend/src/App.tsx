@@ -7,6 +7,9 @@ import AdminPanel from './pages/AdminPanel';
 import AuditLog from './pages/AuditLog';
 import Profile from './pages/Profile';
 import Register from './pages/Register';
+import PublicShowcase from './pages/PublicShowcase';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
   if (!isAuthenticated()) return <Navigate to="/login" replace />;
@@ -28,6 +31,9 @@ export default function App() {
         <Route path="/register" element={
           isAuthenticated() ? <Navigate to={isAdmin() ? '/admin' : '/'} replace /> : <Register />
         } />
+        <Route path="/public" element={<PublicShowcase />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/admin" element={
           <ProtectedRoute adminOnly><AdminPanel /></ProtectedRoute>
         } />

@@ -39,13 +39,20 @@ export default function Profile() {
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Можно загружать только изображения');
+      e.target.value = '';
+      return;
+    }
     if (file.size > 2 * 1024 * 1024) {
       toast.error('Файл слишком большой (макс. 2MB)');
+      e.target.value = '';
       return;
     }
     const reader = new FileReader();
     reader.onload = () => setAvatar(reader.result as string);
     reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -130,7 +137,16 @@ export default function Profile() {
             </div>
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">{user?.email}</p>
-              <p className="text-xs text-gray-400 dark:text-gray-500 capitalize">{user?.role}</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 capitalize mb-1">{user?.role}</p>
+              {avatar && (
+                <button
+                  type="button"
+                  onClick={() => setAvatar('')}
+                  className="text-xs text-red-500 hover:text-red-600"
+                >
+                  Убрать фото
+                </button>
+              )}
             </div>
           </div>
 

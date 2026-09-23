@@ -29,3 +29,8 @@ database.sqlite*
 # Temp
 tmp/
 temp/
+
+# Test artifacts
+frontend/test-results/
+frontend/playwright-report/
+frontend/coverage/

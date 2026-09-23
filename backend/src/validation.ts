@@ -14,6 +14,15 @@ export const studentSchema = z.object({
 
 export const studentUpdateSchema = studentSchema.partial();
 
+export const studentSelfSchema = z.object({
+  fullName: z.string().min(2, 'ФИО должно содержать минимум 2 символа').max(200),
+  course: z.number().int().min(1, 'Курс от 1').max(6, 'Курс до 6'),
+  group: z.string().min(1, 'Укажите группу').max(50),
+  specialty: z.string().min(1, 'Укажите специальность').max(200),
+  email: z.string().email('Некорректный email').max(200).nullable().optional(),
+  phone: z.string().max(50).nullable().optional(),
+});
+
 export const querySchema = z.object({
   search: z.string().optional(),
   page: z.coerce.number().int().min(1).default(1),
@@ -22,6 +31,7 @@ export const querySchema = z.object({
   sortOrder: z.enum(['asc', 'desc']).default('asc'),
   filterDebt: z.coerce.boolean().optional(),
   filterCourse: z.coerce.number().int().min(1).max(6).optional(),
+  status: z.enum(['pending', 'approved']).optional(),
 });
 
 export const registerSchema = z.object({
@@ -38,6 +48,15 @@ export const loginSchema = z.object({
 
 export const refreshSchema = z.object({
   refreshToken: z.string().min(1),
+});
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().email('Некорректный email'),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1),
+  newPassword: z.string().min(6, 'Минимум 6 символов').max(200),
 });
 
 export const updateProfileSchema = z.object({

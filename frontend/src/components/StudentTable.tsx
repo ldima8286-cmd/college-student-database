@@ -65,6 +65,11 @@ export default function StudentTable({ students, sortBy, sortOrder, onSort, onEd
                   <div className="flex items-center gap-2">
                     {student.academicDebt && <span className="flex-shrink-0 w-2 h-2 rounded-full bg-red-500"></span>}
                     <span className="font-medium text-gray-900 dark:text-white">{student.fullName}</span>
+                    {student.status === 'pending' && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300">
+                        Модерация
+                      </span>
+                    )}
                   </div>
                 </td>
                 <td className="px-4 py-3 hidden sm:table-cell text-gray-600 dark:text-gray-400">{student.course}</td>

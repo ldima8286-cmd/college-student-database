@@ -22,6 +22,8 @@ sqliteDb.exec(`
     academicDebt INTEGER NOT NULL DEFAULT 0,
     email TEXT,
     phone TEXT,
+    userId TEXT,
+    status TEXT NOT NULL DEFAULT 'approved',
     createdAt TEXT NOT NULL,
     updatedAt TEXT NOT NULL
   )
@@ -33,6 +35,12 @@ if (!studentCols.some((c: any) => c.name === 'email')) {
 }
 if (!studentCols.some((c: any) => c.name === 'phone')) {
   sqliteDb.exec(`ALTER TABLE students ADD COLUMN phone TEXT`);
+}
+if (!studentCols.some((c: any) => c.name === 'userId')) {
+  sqliteDb.exec(`ALTER TABLE students ADD COLUMN userId TEXT`);
+}
+if (!studentCols.some((c: any) => c.name === 'status')) {
+  sqliteDb.exec(`ALTER TABLE students ADD COLUMN status TEXT NOT NULL DEFAULT 'approved'`);
 }
 
 sqliteDb.exec(`
@@ -76,7 +84,7 @@ const auditTable = schema.auditLog;
 export async function getAllStudents(
   search?: string, page: number = 1, limit: number = 50,
   sortBy: string = 'fullName', sortOrder: SortOrder = 'asc',
-  filterDebt?: boolean, filterCourse?: number
+  filterDebt?: boolean, filterCourse?: number, filterStatus?: string
 ): Promise<{ students: Student[]; total: number }> {
   const allowedSorts = ['fullName', 'course', 'group', 'specialty', 'attendance', 'performance', 'createdAt'];
   const safeSortBy = allowedSorts.includes(sortBy) ? sortBy : 'fullName';
@@ -97,6 +105,10 @@ export async function getAllStudents(
   if (filterCourse !== undefined) {
     conditions.push(`course = ?`);
     params.push(filterCourse);
+  }
+  if (filterStatus !== undefined) {
+    conditions.push(`status = ?`);
+    params.push(filterStatus);
   }
 
   if (conditions.length > 0) query += ` WHERE ${conditions.join(' AND ')}`;
@@ -120,13 +132,18 @@ export async function getStudentById(id: string): Promise<Student | undefined> {
   return row ? { ...row, academicDebt: row.academicDebt === 1 } : undefined;
 }
 
+export async function getStudentByUserId(userId: string): Promise<Student | undefined> {
+  const row = sqliteDb.prepare('SELECT * FROM students WHERE userId = ?').get(userId) as any;
+  return row ? { ...row, academicDebt: row.academicDebt === 1 } : undefined;
+}
+
 export async function createStudent(data: Omit<Student, 'id' | 'createdAt' | 'updatedAt'>): Promise<Student> {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   sqliteDb.prepare(
-    `INSERT INTO students (id, fullName, course, "group", specialty, attendance, performance, academicDebt, email, phone, createdAt, updatedAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(id, data.fullName, data.course, data.group, data.specialty, data.attendance, data.performance, data.academicDebt ? 1 : 0, data.email ?? null, data.phone ?? null, now, now);
+    `INSERT INTO students (id, fullName, course, "group", specialty, attendance, performance, academicDebt, email, phone, userId, status, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(id, data.fullName, data.course, data.group, data.specialty, data.attendance, data.performance, data.academicDebt ? 1 : 0, data.email ?? null, data.phone ?? null, data.userId ?? null, data.status ?? 'approved', now, now);
   return (await getStudentById(id))!;
 }
 
@@ -140,11 +157,13 @@ export async function updateStudent(id: string, data: Partial<Omit<Student, 'id'
     academicDebt: data.academicDebt ?? existing.academicDebt,
     email: data.email !== undefined ? data.email : existing.email,
     phone: data.phone !== undefined ? data.phone : existing.phone,
+    userId: data.userId !== undefined ? data.userId : existing.userId,
+    status: data.status ?? existing.status,
     updatedAt: new Date().toISOString(),
   };
   sqliteDb.prepare(
-    `UPDATE students SET fullName=?, course=?, "group"=?, specialty=?, attendance=?, performance=?, academicDebt=?, email=?, phone=?, updatedAt=? WHERE id=?`
-  ).run(updated.fullName, updated.course, updated.group, updated.specialty, updated.attendance, updated.performance, updated.academicDebt ? 1 : 0, updated.email, updated.phone, updated.updatedAt, id);
+    `UPDATE students SET fullName=?, course=?, "group"=?, specialty=?, attendance=?, performance=?, academicDebt=?, email=?, phone=?, userId=?, status=?, updatedAt=? WHERE id=?`
+  ).run(updated.fullName, updated.course, updated.group, updated.specialty, updated.attendance, updated.performance, updated.academicDebt ? 1 : 0, updated.email, updated.phone, updated.userId, updated.status, updated.updatedAt, id);
   return (await getStudentById(id)) ?? null;
 }
 
@@ -167,16 +186,16 @@ export async function deleteAllStudents(): Promise<number> {
 }
 
 export async function getStats() {
-  const total = (sqliteDb.prepare('SELECT COUNT(*) as c FROM students').get() as any).c ?? 0;
-  const withDebt = (sqliteDb.prepare('SELECT COUNT(*) as c FROM students WHERE academicDebt = 1').get() as any).c ?? 0;
-  const avgs = sqliteDb.prepare('SELECT AVG(attendance) as a, AVG(performance) as p FROM students').get() as any;
-  const courseRows = sqliteDb.prepare('SELECT course, COUNT(*) as count FROM students GROUP BY course').all() as any[];
+  const total = (sqliteDb.prepare("SELECT COUNT(*) as c FROM students WHERE status = 'approved'").get() as any).c ?? 0;
+  const withDebt = (sqliteDb.prepare("SELECT COUNT(*) as c FROM students WHERE status = 'approved' AND academicDebt = 1").get() as any).c ?? 0;
+  const avgs = sqliteDb.prepare("SELECT AVG(attendance) as a, AVG(performance) as p FROM students WHERE status = 'approved'").get() as any;
+  const courseRows = sqliteDb.prepare("SELECT course, COUNT(*) as count FROM students WHERE status = 'approved' GROUP BY course").all() as any[];
   const byCourse: Record<number, number> = {};
   for (const r of courseRows) byCourse[r.course] = r.count;
   const courseStats = sqliteDb.prepare(
-    'SELECT course, ROUND(AVG(performance), 2) as avgPerformance, ROUND(AVG(attendance)) as avgAttendance, COUNT(*) as count FROM students GROUP BY course'
+    "SELECT course, ROUND(AVG(performance), 2) as avgPerformance, ROUND(AVG(attendance)) as avgAttendance, COUNT(*) as count FROM students WHERE status = 'approved' GROUP BY course"
   ).all() as any[];
-  const specRows = sqliteDb.prepare('SELECT specialty, COUNT(*) as count FROM students GROUP BY specialty').all() as any[];
+  const specRows = sqliteDb.prepare("SELECT specialty, COUNT(*) as count FROM students WHERE status = 'approved' GROUP BY specialty").all() as any[];
   const bySpecialty: Record<string, number> = {};
   for (const r of specRows) bySpecialty[r.specialty] = r.count;
   return {
@@ -189,18 +208,18 @@ export async function getStats() {
 
 export async function getStudentsBySpecialty() {
   return sqliteDb.prepare(
-    'SELECT specialty, COUNT(*) as count, ROUND(AVG(performance), 2) as avgPerformance, ROUND(AVG(attendance)) as avgAttendance FROM students GROUP BY specialty ORDER BY count DESC'
+    "SELECT specialty, COUNT(*) as count, ROUND(AVG(performance), 2) as avgPerformance, ROUND(AVG(attendance)) as avgAttendance FROM students WHERE status = 'approved' GROUP BY specialty ORDER BY count DESC"
   ).all() as any[];
 }
 
 export async function getStudentsByCourse() {
   return sqliteDb.prepare(
-    'SELECT course, COUNT(*) as count, SUM(academicDebt) as withDebt FROM students GROUP BY course ORDER BY course'
+    "SELECT course, COUNT(*) as count, SUM(academicDebt) as withDebt FROM students WHERE status = 'approved' GROUP BY course ORDER BY course"
   ).all() as any[];
 }
 
 export async function getRecentStudents(limit: number = 5): Promise<Student[]> {
-  const rows = sqliteDb.prepare('SELECT * FROM students ORDER BY createdAt DESC LIMIT ?').all(limit) as any[];
+  const rows = sqliteDb.prepare("SELECT * FROM students WHERE status = 'approved' ORDER BY createdAt DESC LIMIT ?").all(limit) as any[];
   return rows.map(r => ({ ...r, academicDebt: r.academicDebt === 1 }));
 }
 

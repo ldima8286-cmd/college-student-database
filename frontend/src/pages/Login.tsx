@@ -97,10 +97,22 @@ export default function Login() {
           </button>
         </form>
 
+        <div className="mt-3 text-center text-sm">
+          <Link to="/forgot-password" className="text-primary-600 hover:text-primary-700 font-medium">
+            Забыли пароль?
+          </Link>
+        </div>
+
         <p className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
           Нет аккаунта?{' '}
           <Link to="/register" className="text-primary-600 hover:text-primary-700 font-medium">
             Зарегистрироваться
+          </Link>
+        </p>
+
+        <p className="mt-2 text-center text-sm text-gray-500 dark:text-gray-400">
+          <Link to="/public" className="text-primary-600 hover:text-primary-700 font-medium">
+            Открытая статистика
           </Link>
         </p>
 

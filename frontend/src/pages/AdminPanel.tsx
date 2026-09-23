@@ -5,10 +5,10 @@ import {
   GraduationCap, LogOut, Home, Users, AlertTriangle, BarChart3,
   TrendingUp, BookOpen, LayoutGrid, Table,
   Plus, Pencil, Trash2, ToggleLeft, ToggleRight, Search, X,
-  Shield, Activity, Clock, Database, FileText, User,
+  Shield, Activity, Clock, Database, FileText, User, CheckCircle2,
 } from 'lucide-react';
 import { Student, SortField, SortOrder, ViewMode } from '../types';
-import { getStudents, deleteStudent, toggleDebt, deleteAllStudents, getStats, logout, getAnalytics, batchDeleteStudents, batchExportStudents, batchUpdateStudents } from '../api';
+import { getStudents, deleteStudent, toggleDebt, deleteAllStudents, getStats, logout, getAnalytics, batchDeleteStudents, batchExportStudents, batchUpdateStudents, approveStudent } from '../api';
 import StudentForm from '../components/StudentForm';
 import StudentTable from '../components/StudentTable';
 import StudentCards from '../components/StudentCards';
@@ -34,6 +34,9 @@ export default function AdminPanel() {
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [filterDebt, setFilterDebt] = useState<boolean | undefined>(undefined);
   const [filterCourse, setFilterCourse] = useState<number | undefined>(undefined);
+  const [filterStatus, setFilterStatus] = useState<'' | 'pending' | 'approved'>('');
+  const [pendingStudents, setPendingStudents] = useState<Student[]>([]);
+  const [pendingLoading, setPendingLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [stats, setStats] = useState<any>(null);
   const [analytics, setAnalytics] = useState<any>(null);
@@ -51,7 +54,7 @@ export default function AdminPanel() {
     try {
       setLoading(true);
       const [res, s, a] = await Promise.all([
-        getStudents({ search: debouncedSearch, page, limit: 20, sortBy, sortOrder, filterDebt, filterCourse }),
+        getStudents({ search: debouncedSearch, page, limit: 20, sortBy, sortOrder, filterDebt, filterCourse, status: filterStatus || undefined }),
         getStats(),
         getAnalytics().catch(() => null),
       ]);
@@ -65,9 +68,33 @@ export default function AdminPanel() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, page, sortBy, sortOrder, filterDebt, filterCourse]);
+  }, [debouncedSearch, page, sortBy, sortOrder, filterDebt, filterCourse, filterStatus]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  const loadPending = useCallback(async () => {
+    try {
+      setPendingLoading(true);
+      const res = await getStudents({ status: 'pending', limit: 100, sortBy: 'createdAt', sortOrder: 'desc' });
+      setPendingStudents(res.data);
+    } catch {
+      setPendingStudents([]);
+    } finally {
+      setPendingLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadPending(); }, [loadPending]);
+
+  const refreshAll = () => { loadData(); loadPending(); };
+
+  const handleApprove = async (student: Student) => {
+    try {
+      await approveStudent(student.id);
+      toast.success(`${student.fullName} одобрен`);
+      refreshAll();
+    } catch (err: any) { toast.error(err.message); }
+  };
 
   const handleDelete = (student: Student) => {
     setConfirmDialog({
@@ -191,6 +218,54 @@ export default function AdminPanel() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Pending approvals */}
+        <div className="card mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-300 flex items-center gap-2">
+              <Clock className="w-4 h-4" /> Заявки на подтверждение
+              {!pendingLoading && (
+                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300">
+                  {pendingStudents.length}
+                </span>
+              )}
+            </h3>
+            <button onClick={loadPending} className="text-xs text-primary-600 hover:underline">Обновить</button>
+          </div>
+          {pendingLoading ? (
+            <div className="flex items-center justify-center py-6">
+              <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary-500 border-t-transparent"></div>
+            </div>
+          ) : pendingStudents.length === 0 ? (
+            <p className="text-sm text-gray-500">Новых заявок нет. Анкеты студентов появляются здесь после отправки на модерацию.</p>
+          ) : (
+            <ul className="divide-y divide-gray-100 dark:divide-gray-800">
+              {pendingStudents.map((s) => (
+                <li key={s.id} className="py-3 flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-900 dark:text-white truncate">{s.fullName}</p>
+                    <p className="text-xs text-gray-500 truncate">
+                      {s.group} · {s.specialty} · {s.course} курс
+                      {s.email ? ` · ${s.email}` : ''}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => { setEditingStudent(s); setShowForm(true); }}
+                      className="btn btn-secondary text-xs flex items-center gap-1" title="Заполнить данные">
+                      <Pencil className="w-3.5 h-3.5" /> Заполнить
+                    </button>
+                    <button
+                      onClick={() => handleApprove(s)}
+                      className="btn btn-primary text-xs flex items-center gap-1" title="Одобрить анкету">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Одобрить
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
         {/* Stats */}
         {stats && (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -257,6 +332,12 @@ export default function AdminPanel() {
               <option value="">Все</option>
               <option value="false">Без задолженности</option>
               <option value="true">С задолженностью</option>
+            </select>
+
+            <select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value as '' | 'pending' | 'approved'); setPage(1); }} className="input w-auto">
+              <option value="">Все статусы</option>
+              <option value="pending">На модерации</option>
+              <option value="approved">Подтверждены</option>
             </select>
 
             <div className="flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden">

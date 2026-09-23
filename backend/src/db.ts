@@ -1,5 +1,7 @@
 import { env } from './env.js';
 
+export type StudentStatus = 'pending' | 'approved';
+
 export interface Student {
   id: string;
   fullName: string;
@@ -11,6 +13,8 @@ export interface Student {
   academicDebt: boolean;
   email: string | null;
   phone: string | null;
+  userId: string | null;
+  status: StudentStatus;
   createdAt: string;
   updatedAt: string;
 }
@@ -31,8 +35,9 @@ type SortOrder = 'asc' | 'desc';
 
 interface DbModule {
   ensureSchema?(): Promise<void>;
-  getAllStudents(search?: string, page?: number, limit?: number, sortBy?: string, sortOrder?: SortOrder, filterDebt?: boolean, filterCourse?: number): Promise<{ students: Student[]; total: number }>;
+  getAllStudents(search?: string, page?: number, limit?: number, sortBy?: string, sortOrder?: SortOrder, filterDebt?: boolean, filterCourse?: number, filterStatus?: StudentStatus): Promise<{ students: Student[]; total: number }>;
   getStudentById(id: string): Promise<Student | undefined>;
+  getStudentByUserId(userId: string): Promise<Student | undefined>;
   createStudent(data: Omit<Student, 'id' | 'createdAt' | 'updatedAt'>): Promise<Student>;
   updateStudent(id: string, data: Partial<Omit<Student, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Student | null>;
   deleteStudent(id: string): Promise<boolean>;
@@ -74,6 +79,9 @@ export async function getAllStudents(...args: Parameters<DbModule['getAllStudent
 }
 export async function getStudentById(...args: Parameters<DbModule['getStudentById']>) {
   return (await getDbModule()).getStudentById(...args);
+}
+export async function getStudentByUserId(...args: Parameters<DbModule['getStudentByUserId']>) {
+  return (await getDbModule()).getStudentByUserId(...args);
 }
 export async function createStudent(...args: Parameters<DbModule['createStudent']>) {
   return (await getDbModule()).createStudent(...args);

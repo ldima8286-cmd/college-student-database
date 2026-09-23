@@ -28,4 +28,7 @@ export const env = cleanEnv(process.env, {
   SMTP_PASS: str({ default: '' }),
   SMTP_FROM: str({ default: 'noreply@college.local' }),
   REFRESH_TOKEN_SECRET: str({ default: 'refresh-secret-change-in-production' }),
+  FRONT_URL: str({ default: 'http://localhost:3000' }),
+  REDIS_URL: str({ default: '' }),
+  RESET_TOKEN_SECRET: str({ default: 'reset-secret-change-in-production' }),
 });

@@ -46,3 +46,13 @@ export async function sendDebtNotification(studentEmail: string, studentName: st
     `<h2>Уважаемый(ая) ${studentName}!</h2><p>Сообщаем, что у вас имеется академическая задолженность. Просим связаться с учебной частью.</p>`
   );
 }
+
+export async function sendPasswordResetEmail(userEmail: string, resetUrl: string): Promise<void> {
+  await sendMail(
+    userEmail,
+    'Восстановление пароля',
+    `<h2>Восстановление пароля</h2><p>Для сброса пароля перейдите по ссылке (действует 15 минут):</p>
+     <p><a href="${resetUrl}">Сбросить пароль</a></p>
+     <p>Если вы не запрашивали сброс пароля, проигнорируйте это письмо.</p>`
+  );
+}

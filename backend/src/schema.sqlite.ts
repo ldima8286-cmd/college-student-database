@@ -24,6 +24,8 @@ export const students = sqliteTable('students', {
   academicDebt: integer('academicDebt', { mode: 'boolean' }).notNull().default(false),
   email: text('email'),
   phone: text('phone'),
+  userId: text('userId'),
+  status: text('status').notNull().default('approved'),
   createdAt: text('createdAt').notNull(),
   updatedAt: text('updatedAt').notNull(),
 }, (t) => [

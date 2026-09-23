@@ -25,6 +25,8 @@ export const students = pgTable('students', {
   academicDebt: boolean('academic_debt').notNull().default(false),
   email: text('email'),
   phone: text('phone'),
+  userId: uuid('user_id').references(() => users.id),
+  status: text('status').notNull().default('approved'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [

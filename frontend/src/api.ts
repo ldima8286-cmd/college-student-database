@@ -1,56 +1,123 @@
-import axios from 'axios';
-import { Student, PaginatedResponse, StudentStats, ApiResponse } from './types';
+import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import { Student, StudentStatus, PaginatedResponse, StudentStats, ApiResponse } from './types';
 
 export type Role = 'admin' | 'user';
+
+const AUTH_PATHS = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/forgot-password', '/auth/reset-password'];
 
 const api = axios.create({
   baseURL: '/api',
   timeout: 10000,
+  withCredentials: true,
 });
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('auth_token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+export function getCookie(name: string): string | undefined {
+  if (typeof document === 'undefined') return undefined;
+  const match = document.cookie.split('; ').find((c) => c.startsWith(`${name}=`));
+  return match ? decodeURIComponent(match.slice(name.length + 1)) : undefined;
+}
+
+export function setCookie(name: string, value: string): void {
+  if (typeof document === 'undefined') return;
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=31536000; samesite=lax`;
+}
+
+export function clearLocalCookies(): void {
+  document.cookie = 'role=; path=/; max-age=0';
+  document.cookie = 'x_csrf=; path=/; max-age=0';
+}
+
+api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  const method = (config.method ?? 'get').toUpperCase();
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+    const csrf = getCookie('x_csrf');
+    if (csrf) config.headers['X-CSRF-Token'] = csrf;
+  }
   return config;
 });
 
+let refreshPromise: Promise<boolean> | null = null;
+
+export async function tryRefresh(): Promise<boolean> {
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      try {
+        await api.post('/auth/refresh', null);
+        return true;
+      } catch {
+        return false;
+      } finally {
+        refreshPromise = null;
+      }
+    })();
+  }
+  return refreshPromise;
+}
+
+function handleSessionExpired(): void {
+  clearLocalCookies();
+  if (window.location.pathname !== '/login') {
+    window.location.href = '/login';
+  }
+}
+
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('auth_role');
-      if (window.location.pathname.startsWith('/admin')) {
-        window.location.href = '/login';
+  async (error: AxiosError) => {
+    const status = error.response?.status;
+    const url = error.config?.url ?? '';
+    const method = (error.config?.method ?? 'get').toUpperCase();
+    const cfg = error.config as (InternalAxiosRequestConfig & { _retried?: boolean }) | undefined;
+
+    if (status === 401 && !AUTH_PATHS.includes(url) && cfg && !cfg._retried) {
+      const ok = await tryRefresh();
+      if (ok) {
+        cfg._retried = true;
+        const csrf = getCookie('x_csrf');
+        if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) && csrf) {
+          cfg.headers['X-CSRF-Token'] = csrf;
+        }
+        return api.request(cfg);
       }
+      handleSessionExpired();
     }
-    return Promise.reject(new Error(error.response?.data?.error || 'Ошибка сети'));
+    return Promise.reject(new Error((error.response?.data as any)?.error || 'Ошибка сети'));
   }
 );
 
-export async function login(email: string, password: string): Promise<{ token: string; role: Role }> {
-  const { data } = await api.post<ApiResponse<{ accessToken: string; refreshToken: string; role: Role }>>('/auth/login', { email, password });
+export async function login(email: string, password: string): Promise<{ role: Role }> {
+  const { data } = await api.post<ApiResponse<{ role: Role }>>('/auth/login', { email, password });
   if (!data.success || !data.data) throw new Error(data.error || 'Ошибка входа');
-  localStorage.setItem('auth_token', data.data.accessToken);
-  localStorage.setItem('auth_refresh_token', data.data.refreshToken);
-  localStorage.setItem('auth_role', data.data.role);
-  return { token: data.data.accessToken, role: data.data.role };
+  return { role: data.data.role };
 }
 
 export async function logout(): Promise<void> {
-  try { await api.post('/auth/logout'); } finally {
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('auth_refresh_token');
-    localStorage.removeItem('auth_role');
+  try {
+    await api.post('/auth/logout', null);
+  } catch {
+    /* сеть недоступна — подчищаем локально */
+  } finally {
+    clearLocalCookies();
   }
 }
 
+export async function forgotPassword(email: string): Promise<void> {
+  const { data } = await api.post<ApiResponse<void>>('/auth/forgot-password', { email });
+  if (!data.success) throw new Error(data.error || 'Ошибка запроса');
+}
+
+export async function resetPassword(token: string, newPassword: string): Promise<void> {
+  const { data } = await api.post<ApiResponse<void>>('/auth/reset-password', { token, newPassword });
+  if (!data.success) throw new Error(data.error || 'Ошибка сброса пароля');
+}
+
 export function getRole(): Role | null {
-  return (localStorage.getItem('auth_role') as Role) || null;
+  const role = getCookie('role');
+  return role === 'admin' || role === 'user' ? role : null;
 }
 
 export function isAuthenticated(): boolean {
-  return !!localStorage.getItem('auth_token');
+  return getRole() !== null;
 }
 
 export function isAdmin(): boolean {
@@ -59,7 +126,7 @@ export function isAdmin(): boolean {
 
 export async function getStudents(params: {
   search?: string; page?: number; limit?: number; sortBy?: string;
-  sortOrder?: 'asc' | 'desc'; filterDebt?: boolean; filterCourse?: number;
+  sortOrder?: 'asc' | 'desc'; filterDebt?: boolean; filterCourse?: number; status?: StudentStatus;
 }): Promise<PaginatedResponse> {
   const { data } = await api.get<PaginatedResponse>('/students', { params });
   return data;
@@ -104,6 +171,33 @@ export async function getStats(): Promise<StudentStats> {
   return data.data;
 }
 
+export async function getPublicStats(): Promise<any> {
+  const { data } = await api.get<ApiResponse<any>>('/public/stats');
+  if (!data.success || !data.data) throw new Error('Ошибка загрузки статистики');
+  return data.data;
+}
+
+export async function getMyStudent(): Promise<Student | null> {
+  const { data } = await api.get<ApiResponse<Student | null>>('/students/me');
+  if (!data.success) throw new Error(data.error || 'Ошибка загрузки анкеты');
+  return data.data ?? null;
+}
+
+export async function saveMyStudent(payload: {
+  fullName: string; course: number; group: string; specialty: string;
+  email?: string | null; phone?: string | null;
+}): Promise<Student> {
+  const { data } = await api.put<ApiResponse<Student>>('/students/me', payload);
+  if (!data.success || !data.data) throw new Error(data.error || 'Ошибка сохранения анкеты');
+  return data.data;
+}
+
+export async function approveStudent(id: string): Promise<Student> {
+  const { data } = await api.post<ApiResponse<Student>>(`/students/${id}/approve`);
+  if (!data.success || !data.data) throw new Error(data.error || 'Ошибка одобрения');
+  return data.data;
+}
+
 export async function getAnalytics(): Promise<any> {
   const { data } = await api.get('/admin/analytics');
   if (!data.success) throw new Error('Ошибка');
@@ -130,16 +224,6 @@ export async function updateProfile(data: { fullName: string; phone?: string; av
 export async function changePassword(data: { oldPassword: string; newPassword: string }): Promise<void> {
   const { data: res } = await api.put<ApiResponse<void>>('/auth/me/password', data);
   if (!res.success) throw new Error(res.error || 'Ошибка смены пароля');
-}
-
-export async function refreshToken(): Promise<string> {
-  const refreshToken = localStorage.getItem('auth_refresh_token');
-  if (!refreshToken) throw new Error('Нет refresh-токена');
-  const { data } = await api.post<ApiResponse<{ token: string; role: string }>>('/auth/refresh', { refreshToken });
-  if (!data.success || !data.data) throw new Error('Ошибка обновления токена');
-  localStorage.setItem('auth_token', data.data.token);
-  localStorage.setItem('auth_role', data.data.role);
-  return data.data.token;
 }
 
 export async function getAuditLogs(page?: number, limit?: number, entity?: string): Promise<any> {

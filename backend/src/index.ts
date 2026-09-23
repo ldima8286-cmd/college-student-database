@@ -1,5 +1,6 @@
 import { env } from './env.js';
 import express from 'express';
+import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -12,8 +13,24 @@ import { seedUsers } from './seed.js';
 const app = express();
 
 app.use(helmet({
-  contentSecurityPolicy: env.NODE_ENV === 'production' ? undefined : false,
+  contentSecurityPolicy: env.NODE_ENV === 'production' ? {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", 'data:', 'blob:'],
+      connectSrc: ["'self'", 'https:'],
+      fontSrc: ["'self'", 'data:'],
+      objectSrc: ["'none'"],
+      frameAncestors: ["'none'"],
+      baseUri: ["'self'"],
+    },
+  } : false,
+  crossOriginEmbedderPolicy: false,
+  referrerPolicy: { policy: 'same-origin' },
 }));
+
+app.use(cookieParser());
 
 app.use(cors({
   origin: env.NODE_ENV === 'production'
@@ -38,10 +55,39 @@ app.use('/api', limiter);
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: env.NODE_ENV === 'production' ? 10 : 100,
+  standardHeaders: true,
+  legacyHeaders: false,
   message: { success: false, error: 'Слишком много попыток входа' },
 });
 app.use('/api/auth/login', authLimiter);
+
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: env.NODE_ENV === 'production' ? 5 : 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Слишком много регистраций с этого адреса' },
+});
+app.use('/api/auth/register', registerLimiter);
+
+const refreshLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: env.NODE_ENV === 'production' ? 60 : 500,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Слишком много запросов на обновление токена' },
+});
+app.use('/api/auth/refresh', refreshLimiter);
+
+const forgotLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: env.NODE_ENV === 'production' ? 3 : 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Слишком много запросов на восстановление пароля' },
+});
+app.use('/api/auth/forgot-password', forgotLimiter);
 
 app.get('/favicon.ico', (_req, res) => {
   res.setHeader('Content-Type', 'image/svg+xml');
