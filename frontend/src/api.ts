@@ -231,7 +231,7 @@ export async function changePassword(data: { oldPassword: string; newPassword: s
 export async function getAuditLogs(page?: number, limit?: number, entity?: string): Promise<any> {
   const { data } = await api.get('/audit-logs', { params: { page, limit, entity } });
   if (!data.success) throw new Error('Ошибка загрузки журнала');
-  return data.data;
+  return data;
 }
 
 export async function batchDeleteStudents(ids: string[]): Promise<void> {
