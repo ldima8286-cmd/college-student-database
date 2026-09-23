@@ -1,9 +1,9 @@
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { eq, sql, like, or, and, count, avg, desc, asc, inArray, getTableColumns } from 'drizzle-orm';
-import { students, auditLog, users } from './schema.js';
+import { students, auditLog, users, subjects, schedule, marks } from './schema.js';
 import { env } from './env.js';
-import type { Student, UserRecord } from './db.js';
+import type { Student, UserRecord, Subject, ScheduleEntry, MarkRecord } from './db.js';
 
 const client = postgres(env.DATABASE_URL);
 const db = drizzle(client);
@@ -14,6 +14,7 @@ export { db as rawDb };
 
 export async function ensureSchema(): Promise<void> {
   await client.unsafe(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS "group" TEXT;
     CREATE TABLE IF NOT EXISTS users (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       email TEXT NOT NULL UNIQUE,
@@ -22,6 +23,7 @@ export async function ensureSchema(): Promise<void> {
       role TEXT NOT NULL DEFAULT 'user',
       avatar TEXT,
       phone TEXT,
+      "group" TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
@@ -58,13 +60,39 @@ export async function ensureSchema(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_students_user_id ON students(user_id);
     CREATE INDEX IF NOT EXISTS idx_students_created_at ON students(created_at);
     CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON audit_log(created_at);
+    CREATE TABLE IF NOT EXISTS subjects (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      name TEXT NOT NULL UNIQUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE TABLE IF NOT EXISTS schedule (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      "group" TEXT NOT NULL,
+      day_of_week INTEGER NOT NULL CHECK(day_of_week >= 1 AND day_of_week <= 7),
+      lesson_number INTEGER NOT NULL CHECK(lesson_number >= 1 AND lesson_number <= 10),
+      subject TEXT NOT NULL,
+      teacher TEXT,
+      room TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE TABLE IF NOT EXISTS marks (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      student_id uuid NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+      subject_id uuid NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+      mark INTEGER NOT NULL CHECK(mark >= 2 AND mark <= 5),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS idx_schedule_group_day ON schedule("group", day_of_week, lesson_number);
+    CREATE INDEX IF NOT EXISTS idx_marks_student ON marks(student_id);
+    CREATE INDEX IF NOT EXISTS idx_marks_subject ON marks(subject_id);
   `);
 }
 
 export async function getAllStudents(
   search?: string, page: number = 1, limit: number = 50,
   sortBy: string = 'fullName', sortOrder: SortOrder = 'asc',
-  filterDebt?: boolean, filterCourse?: number, filterStatus?: string
+  filterDebt?: boolean, filterCourse?: number, filterStatus?: string, filterGroup?: string
 ): Promise<{ students: Student[]; total: number }> {
   const allowedSorts = ['fullName', 'course', 'group', 'specialty', 'attendance', 'performance', 'createdAt'];
   const safeSortBy = allowedSorts.includes(sortBy) ? sortBy : 'fullName';
@@ -78,6 +106,7 @@ export async function getAllStudents(
   if (filterDebt !== undefined) conditions.push(eq(students.academicDebt, filterDebt));
   if (filterCourse !== undefined) conditions.push(eq(students.course, filterCourse));
   if (filterStatus !== undefined) conditions.push(eq(students.status, filterStatus));
+  if (filterGroup !== undefined) conditions.push(eq(students.group, filterGroup));
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
   const offset = (page - 1) * limit;
@@ -261,12 +290,13 @@ export async function getUserById(id: string): Promise<UserRecord | undefined> {
   return rows[0] as unknown as UserRecord | undefined;
 }
 
-export async function createUser(data: { email: string; passwordHash: string; fullName: string; role?: string; avatar?: string | null; phone?: string | null }): Promise<UserRecord> {
+export async function createUser(data: { email: string; passwordHash: string; fullName: string; role?: string; avatar?: string | null; phone?: string | null; group?: string | null }): Promise<UserRecord> {
   const id = crypto.randomUUID();
   const now = new Date();
   const inserted = await db.insert(users).values({
     id, email: data.email, passwordHash: data.passwordHash, fullName: data.fullName,
     role: data.role ?? 'user', avatar: data.avatar ?? null, phone: data.phone ?? null,
+    group: data.group ?? null,
     createdAt: now, updatedAt: now,
   }).returning();
   return inserted[0] as unknown as UserRecord;
@@ -285,4 +315,134 @@ export async function updateUserPassword(id: string, passwordHash: string): Prom
 export async function getAllUsers(): Promise<UserRecord[]> {
   const rows = await db.select().from(users).orderBy(desc(users.createdAt));
   return rows as unknown as UserRecord[];
+}
+
+export async function updateUserRoleAndGroup(id: string, data: { role?: string; group?: string | null }): Promise<UserRecord | null> {
+  const setData: Record<string, any> = { updatedAt: new Date() };
+  if (data.role !== undefined) setData.role = data.role;
+  if (data.group !== undefined) setData.group = data.group === '' ? null : data.group;
+  const rows = await db.update(users).set(setData).where(eq(users.id, id)).returning();
+  return (rows[0] as unknown as UserRecord) ?? null;
+}
+
+export async function getGroups(): Promise<string[]> {
+  const rows = await db.select({ group: students.group })
+    .from(students)
+    .where(and(eq(students.status, 'approved'), sql`${students.group} <> ''`))
+    .groupBy(students.group)
+    .orderBy(asc(students.group));
+  return rows.map((r) => r.group);
+}
+
+export async function listSubjects(): Promise<Subject[]> {
+  const rows = await db.select().from(subjects).orderBy(asc(subjects.name));
+  return rows.map((r) => ({ id: r.id, name: r.name, createdAt: (r as any).createdAt?.toISOString?.() ?? new Date().toISOString() })) as Subject[];
+}
+
+export async function createSubject(name: string): Promise<Subject> {
+  const inserted = await db.insert(subjects).values({ name }).returning();
+  const r = inserted[0];
+  return { id: r.id, name: r.name, createdAt: (r as any).createdAt?.toISOString?.() ?? new Date().toISOString() };
+}
+
+export async function deleteSubject(id: string): Promise<boolean> {
+  const rows = await db.delete(subjects).where(eq(subjects.id, id)).returning();
+  return rows.length > 0;
+}
+
+export async function getSchedule(group?: string): Promise<ScheduleEntry[]> {
+  const rows = group
+    ? await db.select().from(schedule).where(eq(schedule.group, group)).orderBy(asc(schedule.dayOfWeek), asc(schedule.lessonNumber))
+    : await db.select().from(schedule).orderBy(asc(schedule.dayOfWeek), asc(schedule.lessonNumber));
+  return rows.map((r) => ({
+    id: r.id, group: r.group, dayOfWeek: r.dayOfWeek, lessonNumber: r.lessonNumber,
+    subject: r.subject, teacher: r.teacher, room: r.room,
+    createdAt: (r as any).createdAt?.toISOString?.() ?? new Date().toISOString(),
+    updatedAt: (r as any).updatedAt?.toISOString?.() ?? new Date().toISOString(),
+  })) as ScheduleEntry[];
+}
+
+export async function createScheduleEntry(data: Omit<ScheduleEntry, 'id' | 'createdAt' | 'updatedAt'>): Promise<ScheduleEntry> {
+  const now = new Date();
+  const inserted = await db.insert(schedule).values({
+    group: data.group, dayOfWeek: data.dayOfWeek, lessonNumber: data.lessonNumber,
+    subject: data.subject, teacher: data.teacher ?? null, room: data.room ?? null,
+    createdAt: now, updatedAt: now,
+  }).returning();
+  const r = inserted[0];
+  return {
+    id: r.id, group: r.group, dayOfWeek: r.dayOfWeek, lessonNumber: r.lessonNumber,
+    subject: r.subject, teacher: r.teacher, room: r.room,
+    createdAt: (r as any).createdAt?.toISOString?.() ?? now.toISOString(),
+    updatedAt: (r as any).updatedAt?.toISOString?.() ?? now.toISOString(),
+  };
+}
+
+export async function updateScheduleEntry(id: string, data: Partial<Omit<ScheduleEntry, 'id' | 'createdAt' | 'updatedAt'>>): Promise<ScheduleEntry | null> {
+  const setData: Record<string, any> = { updatedAt: new Date() };
+  for (const [key, value] of Object.entries(data)) {
+    if (value === undefined) continue;
+    setData[key] = value;
+  }
+  if (Object.keys(setData).length === 1) return null;
+  const rows = await db.update(schedule).set(setData).where(eq(schedule.id, id)).returning();
+  if (rows.length === 0) return null;
+  const r = rows[0];
+  return {
+    id: r.id, group: r.group, dayOfWeek: r.dayOfWeek, lessonNumber: r.lessonNumber,
+    subject: r.subject, teacher: r.teacher, room: r.room,
+    createdAt: (r as any).createdAt?.toISOString?.() ?? new Date().toISOString(),
+    updatedAt: (r as any).updatedAt?.toISOString?.() ?? new Date().toISOString(),
+  };
+}
+
+export async function deleteScheduleEntry(id: string): Promise<boolean> {
+  const rows = await db.delete(schedule).where(eq(schedule.id, id)).returning();
+  return rows.length > 0;
+}
+
+export async function deleteScheduleByGroup(group: string): Promise<number> {
+  const rows = await db.delete(schedule).where(eq(schedule.group, group)).returning();
+  return rows.length;
+}
+
+export async function getMarksByStudent(studentId: string): Promise<MarkRecord[]> {
+  const rows = await db.select({
+    id: marks.id, studentId: marks.studentId, subjectId: marks.subjectId,
+    subjectName: subjects.name, mark: marks.mark, createdAt: marks.createdAt,
+  }).from(marks).innerJoin(subjects, eq(marks.subjectId, subjects.id))
+    .where(eq(marks.studentId, studentId))
+    .orderBy(asc(subjects.name), asc(marks.createdAt));
+  return rows.map((r) => ({
+    id: r.id, studentId: r.studentId, subjectId: r.subjectId, subjectName: r.subjectName,
+    mark: r.mark, createdAt: (r as any).createdAt?.toISOString?.() ?? new Date().toISOString(),
+  }));
+}
+
+export async function getMarkById(id: string): Promise<MarkRecord | undefined> {
+  const rows = await db.select({
+    id: marks.id, studentId: marks.studentId, subjectId: marks.subjectId,
+    subjectName: subjects.name, mark: marks.mark, createdAt: marks.createdAt,
+  }).from(marks).innerJoin(subjects, eq(marks.subjectId, subjects.id)).where(eq(marks.id, id));
+  if (rows.length === 0) return undefined;
+  const r = rows[0];
+  return { id: r.id, studentId: r.studentId, subjectId: r.subjectId, subjectName: r.subjectName, mark: r.mark, createdAt: (r as any).createdAt?.toISOString?.() ?? new Date().toISOString() };
+}
+
+export async function addMark(studentId: string, subjectId: string, mark: number): Promise<MarkRecord> {
+  const inserted = await db.insert(marks).values({ studentId, subjectId, mark }).returning();
+  const r = inserted[0];
+  const [subjectName] = await db.select({ name: subjects.name }).from(subjects).where(eq(subjects.id, subjectId));
+  return { id: r.id, studentId: r.studentId, subjectId: r.subjectId, subjectName: subjectName?.name, mark: r.mark, createdAt: (r as any).createdAt?.toISOString?.() ?? new Date().toISOString() };
+}
+
+export async function updateMark(id: string, mark: number): Promise<MarkRecord | null> {
+  const rows = await db.update(marks).set({ mark }).where(eq(marks.id, id)).returning();
+  if (rows.length === 0) return null;
+  return (await getMarkById(id)) ?? null;
+}
+
+export async function deleteMark(id: string): Promise<boolean> {
+  const rows = await db.delete(marks).where(eq(marks.id, id)).returning();
+  return rows.length > 0;
 }

@@ -45,3 +45,41 @@ export interface ApiResponse<T> {
 export type SortField = 'fullName' | 'course' | 'group' | 'specialty' | 'attendance' | 'performance' | 'createdAt';
 export type SortOrder = 'asc' | 'desc';
 export type ViewMode = 'table' | 'cards';
+export type Role = 'admin' | 'curator' | 'user';
+
+export interface Subject {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+export interface ScheduleEntry {
+  id: string;
+  group: string;
+  dayOfWeek: number;
+  lessonNumber: number;
+  subject: string;
+  teacher: string | null;
+  room: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MarkRecord {
+  id: string;
+  studentId: string;
+  subjectId: string;
+  subjectName?: string;
+  mark: number;
+  createdAt: string;
+}
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  fullName: string;
+  role: Role;
+  phone: string | null;
+  group: string | null;
+  createdAt: string;
+}

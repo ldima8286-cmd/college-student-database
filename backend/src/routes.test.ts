@@ -22,13 +22,38 @@ vi.mock('./db.js', () => ({
   getStudentsByIds: vi.fn().mockResolvedValue([]),
   deleteStudentsByIds: vi.fn().mockResolvedValue(0),
   updateStudentsByIds: vi.fn().mockResolvedValue(0),
+  updateUserRoleAndGroup: vi.fn().mockResolvedValue({ id: '1', email: 'admin@college.local', role: 'curator', group: 'ПО-507' }),
+  getGroups: vi.fn().mockResolvedValue(['ПО-507']),
+  listSubjects: vi.fn().mockResolvedValue([]),
+  createSubject: vi.fn().mockResolvedValue({ id: 's1', name: 'Математика', createdAt: new Date().toISOString() }),
+  deleteSubject: vi.fn().mockResolvedValue(true),
+  getSchedule: vi.fn().mockResolvedValue([]),
+  createScheduleEntry: vi.fn().mockResolvedValue({ id: 'sch1', group: 'ПО-507', dayOfWeek: 1, lessonNumber: 1, subject: 'Математика', teacher: null, room: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }),
+  updateScheduleEntry: vi.fn().mockResolvedValue({ id: 'sch1', group: 'ПО-507', dayOfWeek: 1, lessonNumber: 1, subject: 'Математика', teacher: null, room: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }),
+  deleteScheduleEntry: vi.fn().mockResolvedValue(true),
+  deleteScheduleByGroup: vi.fn().mockResolvedValue(2),
+  getMarksByStudent: vi.fn().mockResolvedValue([]),
+  getMarkById: vi.fn().mockResolvedValue(undefined),
+  addMark: vi.fn().mockResolvedValue({ id: 'm1', studentId: 'st1', subjectId: 's1', subjectName: 'Математика', mark: 5, createdAt: new Date().toISOString() }),
+  updateMark: vi.fn().mockResolvedValue({ id: 'm1', studentId: 'st1', subjectId: 's1', subjectName: 'Математика', mark: 4, createdAt: new Date().toISOString() }),
+  deleteMark: vi.fn().mockResolvedValue(true),
   db: { select: vi.fn().mockReturnThis(), from: vi.fn().mockReturnThis(), insert: vi.fn().mockReturnThis(), values: vi.fn().mockResolvedValue([]) },
 }));
 
 vi.mock('./auth.js', () => ({
   authenticate: vi.fn().mockResolvedValue({ accessToken: 'acc', refreshToken: 'ref', role: 'admin' }),
-  requireAuth: vi.fn((_req: any, _res: any, next: any) => next()),
-  requireAdmin: vi.fn((_req: any, _res: any, next: any) => next()),
+  requireAuth: vi.fn((req: any, _res: any, next: any) => {
+    req.auth = { userId: '1', email: 'admin@college.local', role: 'admin' };
+    next();
+  }),
+  requireAdmin: vi.fn((req: any, _res: any, next: any) => {
+    req.auth = { userId: '1', email: 'admin@college.local', role: 'admin' };
+    next();
+  }),
+  requireAdminOrCurator: vi.fn((req: any, _res: any, next: any) => {
+    req.auth = { userId: '1', email: 'curator@college.local', role: 'curator' };
+    next();
+  }),
   requireCsrf: vi.fn((_req: any, _res: any, next: any) => next()),
   getAuthInfo: vi.fn(() => ({ role: 'admin', authenticated: true })),
   hashPassword: vi.fn(async (p: string) => p),
@@ -162,6 +187,99 @@ describe('API Routes', () => {
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data.role).toBe('admin');
+    });
+  });
+
+  describe('GET /api/groups', () => {
+    it('returns distinct approved groups for admin', async () => {
+      const res = await request(app).get('/api/groups');
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toEqual(['ПО-507']);
+    });
+  });
+
+  describe('POST /api/subjects', () => {
+    it('creates a subject', async () => {
+      const res = await request(app).post('/api/subjects').send({ name: 'Математика' });
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.name).toBe('Математика');
+    });
+
+    it('rejects duplicate subject name', async () => {
+      const { listSubjects } = await import('./db.js');
+      (listSubjects as any).mockResolvedValueOnce([{ id: 's1', name: 'Математика' }]);
+      const res = await request(app).post('/api/subjects').send({ name: 'Математика' });
+      expect(res.status).toBe(400);
+    });
+  });
+
+  describe('POST /api/schedule', () => {
+    it('creates a schedule entry', async () => {
+      const res = await request(app)
+        .post('/api/schedule')
+        .send({ group: 'ПО-507', dayOfWeek: 1, lessonNumber: 1, subject: 'Математика', teacher: null, room: null });
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+    });
+
+    it('rejects duplicate cell (same group, day, lesson)', async () => {
+      const { getSchedule } = await import('./db.js');
+      (getSchedule as any).mockResolvedValueOnce([{ id: 'sch1', group: 'ПО-507', dayOfWeek: 1, lessonNumber: 1 }]);
+      const res = await request(app)
+        .post('/api/schedule')
+        .send({ group: 'ПО-507', dayOfWeek: 1, lessonNumber: 1, subject: 'Физика' });
+      expect(res.status).toBe(400);
+    });
+  });
+
+  describe('GET /api/schedule', () => {
+    it('returns schedule list', async () => {
+      const res = await request(app).get('/api/schedule');
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toEqual([]);
+    });
+  });
+
+  describe('POST /api/students/:id/marks', () => {
+    it('adds a mark', async () => {
+      const { getStudentById } = await import('./db.js');
+      const { addMark } = await import('./db.js');
+      (getStudentById as any).mockResolvedValueOnce({ id: 'st1', group: 'ПО-507', status: 'approved' });
+      const res = await request(app)
+        .post('/api/students/st1/marks')
+        .send({ subjectId: '11111111-1111-1111-1111-111111111111', mark: 5 });
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(addMark).toHaveBeenCalledWith('st1', '11111111-1111-1111-1111-111111111111', 5);
+    });
+  });
+
+  describe('GET /api/students/me/marks', () => {
+    it('returns empty marks when student has no linked card', async () => {
+      const res = await request(app).get('/api/students/me/marks');
+      expect(res.status).toBe(200);
+      expect(res.body.data).toEqual([]);
+    });
+  });
+
+  describe('PUT /api/admin/users/:id', () => {
+    it('updates user role and group', async () => {
+      const res = await request(app)
+        .put('/api/admin/users/2')
+        .send({ role: 'curator', group: 'ПО-507' });
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.role).toBe('curator');
+    });
+
+    it('forbids changing own role', async () => {
+      const res = await request(app)
+        .put('/api/admin/users/1')
+        .send({ role: 'curator' });
+      expect(res.status).toBe(400);
     });
   });
 });

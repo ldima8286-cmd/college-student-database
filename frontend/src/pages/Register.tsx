@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { GraduationCap, Mail, Lock, User, Phone, UserPlus, Eye, EyeOff } from 'lucide-react';
 import { register } from '../api';
 import { toast } from 'react-hot-toast';
+import { sanitizePhone, PHONE_MAX_LENGTH, isValidPhone } from '../utils/phone';
 
 export default function Register() {
   const [email, setEmail] = useState('');
@@ -21,6 +22,10 @@ export default function Register() {
 
     if (!email.trim() || !password.trim() || !fullName.trim()) {
       setError('Заполните обязательные поля');
+      return;
+    }
+    if (phone && !isValidPhone(phone)) {
+      setError('Телефон: только цифры, максимум 15');
       return;
     }
     if (password !== confirmPassword) {
@@ -99,9 +104,10 @@ export default function Register() {
               <input
                 type="tel"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => setPhone(sanitizePhone(e.target.value))}
                 className="input pl-10"
                 placeholder="+7 (___) ___-__-__"
+                maxLength={PHONE_MAX_LENGTH}
               />
             </div>
           </div>

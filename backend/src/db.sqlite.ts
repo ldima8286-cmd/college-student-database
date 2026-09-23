@@ -1,6 +1,6 @@
 import Database, { type Database as DatabaseType } from 'better-sqlite3';
 import { env } from './env.js';
-import type { Student, UserRecord } from './db.js';
+import type { Student, UserRecord, Subject, ScheduleEntry, MarkRecord } from './db.js';
 import { logAudit as _logAudit, getAuditLogs as _getAuditLogs } from './audit.sqlite.js';
 
 const sqliteDb: DatabaseType = new Database(env.DATABASE_URL.replace('sqlite:', ''));
@@ -66,6 +66,43 @@ sqliteDb.exec(`
   )
 `);
 
+const userCols = sqliteDb.prepare(`PRAGMA table_info(users)`).all() as any[];
+if (!userCols.some((c: any) => c.name === 'group')) {
+  sqliteDb.exec(`ALTER TABLE users ADD COLUMN "group" TEXT`);
+}
+
+sqliteDb.exec(`
+  CREATE TABLE IF NOT EXISTS subjects (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    createdAt TEXT NOT NULL
+  )
+`);
+
+sqliteDb.exec(`
+  CREATE TABLE IF NOT EXISTS schedule (
+    id TEXT PRIMARY KEY,
+    "group" TEXT NOT NULL,
+    dayOfWeek INTEGER NOT NULL CHECK(dayOfWeek >= 1 AND dayOfWeek <= 7),
+    lessonNumber INTEGER NOT NULL CHECK(lessonNumber >= 1 AND lessonNumber <= 10),
+    subject TEXT NOT NULL,
+    teacher TEXT,
+    room TEXT,
+    createdAt TEXT NOT NULL,
+    updatedAt TEXT NOT NULL
+  )
+`);
+
+sqliteDb.exec(`
+  CREATE TABLE IF NOT EXISTS marks (
+    id TEXT PRIMARY KEY,
+    studentId TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    subjectId TEXT NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+    mark INTEGER NOT NULL CHECK(mark >= 2 AND mark <= 5),
+    createdAt TEXT NOT NULL
+  )
+`);
+
 export const rawDb: DatabaseType = sqliteDb;
 
 export async function ensureSchema(): Promise<void> {
@@ -78,6 +115,9 @@ export async function ensureSchema(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_students_user_id ON students(userId);
     CREATE INDEX IF NOT EXISTS idx_students_created_at ON students(createdAt);
     CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON auditLog(createdAt);
+    CREATE INDEX IF NOT EXISTS idx_schedule_group_day ON schedule("group", dayOfWeek, lessonNumber);
+    CREATE INDEX IF NOT EXISTS idx_marks_student ON marks(studentId);
+    CREATE INDEX IF NOT EXISTS idx_marks_subject ON marks(subjectId);
   `);
 }
 
@@ -86,7 +126,7 @@ type SortOrder = 'asc' | 'desc';
 export async function getAllStudents(
   search?: string, page: number = 1, limit: number = 50,
   sortBy: string = 'fullName', sortOrder: SortOrder = 'asc',
-  filterDebt?: boolean, filterCourse?: number, filterStatus?: string
+  filterDebt?: boolean, filterCourse?: number, filterStatus?: string, filterGroup?: string
 ): Promise<{ students: Student[]; total: number }> {
   const allowedSorts = ['fullName', 'course', 'group', 'specialty', 'attendance', 'performance', 'createdAt'];
   const safeSortBy = allowedSorts.includes(sortBy) ? sortBy : 'fullName';
@@ -111,6 +151,10 @@ export async function getAllStudents(
   if (filterStatus !== undefined) {
     conditions.push(`status = ?`);
     params.push(filterStatus);
+  }
+  if (filterGroup !== undefined) {
+    conditions.push(`"group" = ?`);
+    params.push(filterGroup);
   }
 
   if (conditions.length > 0) query += ` WHERE ${conditions.join(' AND ')}`;
@@ -275,13 +319,13 @@ export async function getUserById(id: string): Promise<UserRecord | undefined> {
   return row ? { ...row } : undefined;
 }
 
-export async function createUser(data: { email: string; passwordHash: string; fullName: string; role?: string; avatar?: string | null; phone?: string | null }): Promise<UserRecord> {
+export async function createUser(data: { email: string; passwordHash: string; fullName: string; role?: string; avatar?: string | null; phone?: string | null; group?: string | null }): Promise<UserRecord> {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   sqliteDb.prepare(
-    `INSERT INTO users (id, email, passwordHash, fullName, role, avatar, phone, createdAt, updatedAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(id, data.email.toLowerCase(), data.passwordHash, data.fullName, data.role ?? 'user', data.avatar ?? null, data.phone ?? null, now, now);
+    `INSERT INTO users (id, email, passwordHash, fullName, role, avatar, phone, "group", createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(id, data.email.toLowerCase(), data.passwordHash, data.fullName, data.role ?? 'user', data.avatar ?? null, data.phone ?? null, data.group ?? null, now, now);
   return (await findUserByEmail(data.email.toLowerCase()))!;
 }
 
@@ -309,4 +353,120 @@ export async function updateUserPassword(id: string, passwordHash: string): Prom
 export async function getAllUsers(): Promise<UserRecord[]> {
   const rows = sqliteDb.prepare('SELECT * FROM users ORDER BY createdAt DESC').all() as any[];
   return rows.map(r => ({ ...r }));
+}
+
+export async function updateUserRoleAndGroup(id: string, data: { role?: string; group?: string | null }): Promise<UserRecord | null> {
+  const existing = sqliteDb.prepare('SELECT * FROM users WHERE id = ?').get(id) as any;
+  if (!existing) return null;
+  const role = data.role ?? existing.role;
+  const group = data.group !== undefined ? (data.group === '' ? null : data.group) : (existing.group ?? null);
+  sqliteDb.prepare('UPDATE users SET role = ?, "group" = ?, updatedAt = ? WHERE id = ?')
+    .run(role, group, new Date().toISOString(), id);
+  const row = sqliteDb.prepare('SELECT * FROM users WHERE id = ?').get(id) as any;
+  return row ? { ...row } : null;
+}
+
+export async function getGroups(): Promise<string[]> {
+  const rows = sqliteDb.prepare(`SELECT DISTINCT "group" FROM students WHERE status = 'approved' AND "group" IS NOT NULL AND "group" <> '' ORDER BY "group" COLLATE NOCASE`).all() as any[];
+  return rows.map((r) => r.group);
+}
+
+export async function listSubjects(): Promise<Subject[]> {
+  return sqliteDb.prepare('SELECT * FROM subjects ORDER BY name COLLATE NOCASE').all() as Subject[];
+}
+
+export async function createSubject(name: string): Promise<Subject> {
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  sqliteDb.prepare('INSERT INTO subjects (id, name, createdAt) VALUES (?, ?, ?)').run(id, name, now);
+  return { id, name, createdAt: now };
+}
+
+export async function deleteSubject(id: string): Promise<boolean> {
+  return sqliteDb.prepare('DELETE FROM subjects WHERE id = ?').run(id).changes > 0;
+}
+
+const scheduleCols = ['id', 'group', 'dayOfWeek', 'lessonNumber', 'subject', 'teacher', 'room', 'createdAt', 'updatedAt'];
+
+export async function getSchedule(group?: string): Promise<ScheduleEntry[]> {
+  const where = group ? 'WHERE "group" = ?' : '';
+  const params = group ? [group] : [];
+  return sqliteDb.prepare(
+    `SELECT ${scheduleCols.map((c) => (c === 'group' ? '"group"' : c)).join(', ')} FROM schedule ${where} ORDER BY dayOfWeek, lessonNumber`
+  ).all(...params) as ScheduleEntry[];
+}
+
+export async function createScheduleEntry(data: Omit<ScheduleEntry, 'id' | 'createdAt' | 'updatedAt'>): Promise<ScheduleEntry> {
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  sqliteDb.prepare(
+    `INSERT INTO schedule (id, "group", dayOfWeek, lessonNumber, subject, teacher, room, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(id, data.group, data.dayOfWeek, data.lessonNumber, data.subject, data.teacher ?? null, data.room ?? null, now, now);
+  return (await getSchedule(data.group)).find((e) => e.id === id)!;
+}
+
+export async function updateScheduleEntry(id: string, data: Partial<Omit<ScheduleEntry, 'id' | 'createdAt' | 'updatedAt'>>): Promise<ScheduleEntry | null> {
+  const existing = sqliteDb.prepare('SELECT * FROM schedule WHERE id = ?').get(id) as any;
+  if (!existing) return null;
+  const updated = {
+    group: data.group ?? existing.group,
+    dayOfWeek: data.dayOfWeek ?? existing.dayOfWeek,
+    lessonNumber: data.lessonNumber ?? existing.lessonNumber,
+    subject: data.subject ?? existing.subject,
+    teacher: data.teacher !== undefined ? data.teacher : existing.teacher,
+    room: data.room !== undefined ? data.room : existing.room,
+    updatedAt: new Date().toISOString(),
+  };
+  sqliteDb.prepare(
+    `UPDATE schedule SET "group" = ?, dayOfWeek = ?, lessonNumber = ?, subject = ?, teacher = ?, room = ?, updatedAt = ? WHERE id = ?`
+  ).run(updated.group, updated.dayOfWeek, updated.lessonNumber, updated.subject, updated.teacher, updated.room, updated.updatedAt, id);
+  const row = sqliteDb.prepare('SELECT * FROM schedule WHERE id = ?').get(id) as any;
+  return row ? { ...row } : null;
+}
+
+export async function deleteScheduleEntry(id: string): Promise<boolean> {
+  return sqliteDb.prepare('DELETE FROM schedule WHERE id = ?').run(id).changes > 0;
+}
+
+export async function deleteScheduleByGroup(group: string): Promise<number> {
+  return sqliteDb.prepare('DELETE FROM schedule WHERE "group" = ?').run(group).changes;
+}
+
+export async function getMarksByStudent(studentId: string): Promise<MarkRecord[]> {
+  return sqliteDb.prepare(
+    `SELECT m.id, m.studentId, m.subjectId, s.name as subjectName, m.mark, m.createdAt
+     FROM marks m JOIN subjects s ON s.id = m.subjectId
+     WHERE m.studentId = ? ORDER BY s.name COLLATE NOCASE, m.createdAt`
+  ).all(studentId) as MarkRecord[];
+}
+
+export async function getMarkById(id: string): Promise<MarkRecord | undefined> {
+  return sqliteDb.prepare(
+    `SELECT m.id, m.studentId, m.subjectId, s.name as subjectName, m.mark, m.createdAt
+     FROM marks m JOIN subjects s ON s.id = m.subjectId
+     WHERE m.id = ?`
+  ).get(id) as MarkRecord | undefined;
+}
+
+export async function addMark(studentId: string, subjectId: string, mark: number): Promise<MarkRecord> {
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  sqliteDb.prepare(
+    `INSERT INTO marks (id, studentId, subjectId, mark, createdAt) VALUES (?, ?, ?, ?, ?)`
+  ).run(id, studentId, subjectId, mark, now);
+  const row = await getMarkById(id);
+  return { ...row!, subjectName: (sqliteDb.prepare('SELECT name FROM subjects WHERE id = ?').get(subjectId) as any)?.name };
+}
+
+export async function updateMark(id: string, mark: number): Promise<MarkRecord | null> {
+  const existing = await getMarkById(id);
+  if (!existing) return null;
+  sqliteDb.prepare('UPDATE marks SET mark = ? WHERE id = ?').run(mark, id);
+  const row = await getMarkById(id);
+  return { ...row!, subjectName: (sqliteDb.prepare('SELECT name FROM subjects WHERE id = ?').get(row!.subjectId) as any)?.name };
+}
+
+export async function deleteMark(id: string): Promise<boolean> {
+  return sqliteDb.prepare('DELETE FROM marks WHERE id = ?').run(id).changes > 0;
 }

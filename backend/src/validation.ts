@@ -1,5 +1,14 @@
 import { z } from 'zod';
 
+const phoneField = z.string()
+  .max(20, 'Телефон: не более 20 символов')
+  .refine(
+    (v) => /^\+?[\d\s()-]*$/.test(v) && v.replace(/\D/g, '').length <= 15,
+    'Телефон: только цифры (до 15), допустимы +, (, ), пробел, дефис'
+  )
+  .nullable()
+  .optional();
+
 export const studentSchema = z.object({
   fullName: z.string().min(2, 'ФИО должно содержать минимум 2 символа').max(200),
   course: z.number().int().min(1, 'Курс от 1').max(6, 'Курс до 6'),
@@ -9,7 +18,7 @@ export const studentSchema = z.object({
   performance: z.number().min(0).max(5),
   academicDebt: z.boolean(),
   email: z.string().email('Некорректный email').max(200).nullable().optional(),
-  phone: z.string().max(50).nullable().optional(),
+  phone: phoneField,
 });
 
 export const studentUpdateSchema = studentSchema.partial();
@@ -20,7 +29,7 @@ export const studentSelfSchema = z.object({
   group: z.string().min(1, 'Укажите группу').max(50),
   specialty: z.string().min(1, 'Укажите специальность').max(200),
   email: z.string().email('Некорректный email').max(200).nullable().optional(),
-  phone: z.string().max(50).nullable().optional(),
+  phone: phoneField,
 });
 
 export const querySchema = z.object({
@@ -38,7 +47,7 @@ export const registerSchema = z.object({
   email: z.string().email('Некорректный email'),
   password: z.string().min(6, 'Минимум 6 символов').max(200),
   fullName: z.string().min(2, 'ФИО минимум 2 символа').max(200),
-  phone: z.string().max(50).optional(),
+  phone: phoneField,
 });
 
 export const loginSchema = z.object({
@@ -61,7 +70,7 @@ export const resetPasswordSchema = z.object({
 
 export const updateProfileSchema = z.object({
   fullName: z.string().min(2).max(200).optional(),
-  phone: z.string().max(50).nullable().optional(),
+  phone: phoneField,
   avatar: z.string().max(5_000_000).nullable().optional(),
 });
 
@@ -86,7 +95,7 @@ export const batchUpdateSchema = z.object({
     performance: z.number().min(0).max(5).optional(),
     academicDebt: z.boolean().optional(),
     email: z.string().email('Некорректный email').max(200).nullable().optional(),
-    phone: z.string().max(50).nullable().optional(),
+    phone: phoneField,
   }).refine((p) => Object.keys(p).length > 0, { message: 'Нет полей для обновления' }),
 });
 
@@ -94,3 +103,34 @@ export const webhookSchema = z.object({
   url: z.string().url('Некорректный URL'),
   events: z.array(z.string()).min(1).default(['*']),
 });
+
+export const subjectSchema = z.object({
+  name: z.string().min(2, 'Название предмета минимум 2 символа').max(100),
+});
+
+export const scheduleCreateSchema = z.object({
+  group: z.string().min(1, 'Укажите группу').max(50),
+  dayOfWeek: z.number().int().min(1, 'День недели 1-7').max(7, 'День недели 1-7'),
+  lessonNumber: z.number().int().min(1, 'Урок 1-10').max(10, 'Урок 1-10'),
+  subject: z.string().min(1, 'Укажите предмет').max(100),
+  teacher: z.string().max(100).nullable().optional(),
+  room: z.string().max(50).nullable().optional(),
+});
+
+export const scheduleUpdateSchema = scheduleCreateSchema.partial().refine((p) => Object.keys(p).length > 0, {
+  message: 'Нет полей для обновления',
+});
+
+export const markSchema = z.object({
+  subjectId: z.string().uuid('Некорректный ID предмета'),
+  mark: z.number().int('Оценка — целое число').min(2, 'Оценка от 2').max(5, 'Оценка до 5'),
+});
+
+export const markUpdateSchema = z.object({
+  mark: z.number().int('Оценка — целое число').min(2, 'Оценка от 2').max(5, 'Оценка до 5'),
+});
+
+export const userAdminUpdateSchema = z.object({
+  role: z.enum(['admin', 'curator', 'user']).optional(),
+  group: z.string().max(50).nullable().optional(),
+}).refine((p) => p.role !== undefined || p.group !== undefined, { message: 'Нет полей для обновления' });

@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, User, Save, Lock, Loader2, Camera } from 'lucide-react';
-import { getMe, updateProfile, changePassword } from '../api';
+import { getMe, updateProfile, changePassword, isAdmin } from '../api';
 import { toast } from 'react-hot-toast';
 import ThemeToggle from '../components/ThemeToggle';
+import { sanitizePhone, PHONE_MAX_LENGTH, isValidPhone } from '../utils/phone';
 
 export default function Profile() {
   const [user, setUser] = useState<any>(null);
@@ -57,6 +58,10 @@ export default function Profile() {
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (phone && !isValidPhone(phone)) {
+      toast.error('Телефон: только цифры, максимум 15');
+      return;
+    }
     setSaving(true);
     try {
       await updateProfile({ fullName, phone, avatar: avatar || undefined });
@@ -106,7 +111,7 @@ export default function Profile() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
-              <Link to="/admin" className="btn btn-ghost text-sm flex items-center gap-1">
+              <Link to={isAdmin() ? '/admin' : '/'} className="btn btn-ghost text-sm flex items-center gap-1">
                 <ArrowLeft className="w-4 h-4" />
               </Link>
               <User className="w-6 h-6 text-primary-600" />
@@ -166,9 +171,10 @@ export default function Profile() {
               <input
                 type="tel"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => setPhone(sanitizePhone(e.target.value))}
                 className="input"
                 placeholder="+7 (___) ___-__-__"
+                maxLength={PHONE_MAX_LENGTH}
               />
             </div>
           </div>

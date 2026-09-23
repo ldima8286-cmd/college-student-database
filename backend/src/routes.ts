@@ -22,15 +22,32 @@ import {
   getStudentsByIds,
   deleteStudentsByIds,
   updateStudentsByIds,
+  updateUserRoleAndGroup,
+  getGroups,
+  listSubjects,
+  createSubject,
+  deleteSubject,
+  getSchedule,
+  createScheduleEntry,
+  updateScheduleEntry,
+  deleteScheduleEntry,
+  deleteScheduleByGroup,
+  getMarksByStudent,
+  getMarkById,
+  addMark,
+  updateMark,
+  deleteMark,
 } from './db.js';
 import {
   studentSchema, studentUpdateSchema, studentSelfSchema, querySchema,
   registerSchema, loginSchema, refreshSchema,
   updateProfileSchema, changePasswordSchema, batchIdsSchema, batchUpdateSchema, webhookSchema,
-  forgotPasswordSchema, resetPasswordSchema,
+  forgotPasswordSchema, resetPasswordSchema, subjectSchema,
+  scheduleCreateSchema, scheduleUpdateSchema, markSchema, markUpdateSchema, userAdminUpdateSchema,
 } from './validation.js';
 import {
   authenticate, requireAuth, requireAdmin, requireCsrf, getAuthInfo,
+  requireAdminOrCurator,
   hashPassword, comparePassword,
   setAuthCookies, clearAuthCookies, refreshSession,
   signResetToken, verifyResetToken,
@@ -47,6 +64,12 @@ export const router = Router();
 
 const CACHE_TTL = 30_000;
 const invalidateStudentsCache = () => invalidateCache('students.');
+
+const getCuratorGroup = async (req: Request): Promise<string | null> => {
+  if (req.auth?.role !== 'curator') return null;
+  const user = await getUserById(req.auth!.userId);
+  return user?.group ?? null;
+};
 
 router.use(cookieParser());
 router.use(requireCsrf);
@@ -179,6 +202,7 @@ router.get('/auth/me', requireAuth, async (req: Request, res: Response) => {
         role: user.role,
         avatar: user.avatar,
         phone: user.phone,
+        group: user.group ?? null,
         createdAt: user.createdAt,
       },
     });
@@ -261,9 +285,10 @@ router.get('/students', requireAuth, async (req: Request, res: Response) => {
     const isAdmin = req.auth?.role === 'admin';
     const status = isAdmin ? query.status : 'approved';
     const limit = isAdmin ? query.limit : Math.min(query.limit, 200);
+    const filterGroup = req.auth?.role === 'curator' ? await getCuratorGroup(req) : undefined;
     const { students, total } = await getAllStudents(
       query.search, query.page, limit, query.sortBy, query.sortOrder,
-      query.filterDebt, query.filterCourse, status
+      query.filterDebt, query.filterCourse, status, filterGroup ?? undefined
     );
     res.json({
       success: true, data: students, total,
@@ -335,7 +360,12 @@ router.get('/students/:id', requireAuth, async (req: Request, res: Response) => 
   try {
     const student = await getStudentById(req.params.id);
     if (!student) return res.status(404).json({ success: false, error: 'Студент не найден' });
-    if (req.auth?.role !== 'admin' && student.status === 'pending' && student.userId !== req.auth?.userId) {
+    if (req.auth?.role === 'curator') {
+      const curatorGroup = await getCuratorGroup(req);
+      if (!curatorGroup || student.group !== curatorGroup) {
+        return res.status(403).json({ success: false, error: 'Недостаточно прав' });
+      }
+    } else if (req.auth?.role !== 'admin' && student.status === 'pending' && student.userId !== req.auth?.userId) {
       return res.status(403).json({ success: false, error: 'Недостаточно прав' });
     }
     res.json({ success: true, data: student });
@@ -363,15 +393,22 @@ router.post('/students/batch-delete', requireAdmin, async (req: Request, res: Re
 router.post('/students/batch-export', requireAuth, async (req: Request, res: Response) => {
   try {
     let result;
+    const isAdmin = req.auth?.role === 'admin';
+    const curatorGroup = req.auth?.role === 'curator' ? await getCuratorGroup(req) : undefined;
     if (req.body?.ids?.length) {
       const { ids } = batchIdsSchema.parse(req.body);
-      const isAdmin = req.auth?.role === 'admin';
-      const rows = (await getStudentsByIds(ids)).filter((s) =>
-        isAdmin || s.status === 'approved' || s.userId === req.auth?.userId
-      );
+      const rows = (await getStudentsByIds(ids)).filter((s) => {
+        if (isAdmin) return true;
+        if (curatorGroup) return s.status === 'approved' && s.group === curatorGroup;
+        return s.status === 'approved' || s.userId === req.auth?.userId;
+      });
       result = rows;
     } else {
-      const { students } = await getAllStudents(undefined, 1, 10000, 'fullName', 'asc', undefined, undefined, req.auth?.role === 'admin' ? undefined : 'approved');
+      const { students } = await getAllStudents(undefined, 1, 10000, 'fullName', 'asc',
+        undefined, undefined,
+        req.auth?.role === 'admin' ? undefined : 'approved',
+        curatorGroup ?? undefined
+      );
       result = students;
     }
     logAudit('batch-export', 'student', undefined, req.auth?.role, { count: result.length });
@@ -541,7 +578,7 @@ router.get('/admin/users', requireAdmin, async (_req: Request, res: Response) =>
       success: true,
       data: users.map((u) => ({
         id: u.id, email: u.email, fullName: u.fullName, role: u.role,
-        phone: u.phone, createdAt: u.createdAt,
+        phone: u.phone, group: u.group ?? null, createdAt: u.createdAt,
       })),
       total: users.length,
     });
@@ -563,6 +600,277 @@ router.get('/audit-logs', requireAdmin, async (req: Request, res: Response) => {
       totalPages: Math.ceil(total / limit),
     });
   } catch {
+    res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+router.get('/groups', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const role = req.auth?.role;
+    let groups: string[] = [];
+    if (role === 'admin') {
+      groups = await getGroups();
+    } else if (role === 'curator') {
+      const curatorGroup = await getCuratorGroup(req);
+      groups = curatorGroup ? [curatorGroup] : [];
+    } else {
+      const student = await getStudentByUserId(req.auth!.userId);
+      groups = student?.group ? [student.group] : [];
+    }
+    res.json({ success: true, data: groups });
+  } catch {
+    res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+router.get('/subjects', requireAuth, async (_req: Request, res: Response) => {
+  try {
+    const data = await listSubjects();
+    res.json({ success: true, data });
+  } catch {
+    res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+router.post('/subjects', requireAdminOrCurator, async (req: Request, res: Response) => {
+  try {
+    const { name } = subjectSchema.parse(req.body);
+    const existing = await listSubjects();
+    if (existing.some((s) => s.name.toLowerCase() === name.toLowerCase())) {
+      return res.status(400).json({ success: false, error: 'Предмет уже существует' });
+    }
+    const subject = await createSubject(name);
+    logAudit('create', 'subject', subject.id, req.auth?.role, { name: subject.name });
+    res.status(201).json({ success: true, data: subject });
+  } catch (err: any) {
+    if (err.name === 'ZodError') {
+      return res.status(400).json({ success: false, error: 'Ошибка валидации', details: err.errors });
+    }
+    res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+router.delete('/subjects/:id', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const deleted = await deleteSubject(req.params.id);
+    if (!deleted) return res.status(404).json({ success: false, error: 'Предмет не найден' });
+    logAudit('delete', 'subject', req.params.id, req.auth?.role);
+    res.json({ success: true, data: { deleted } });
+  } catch {
+    res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+router.get('/schedule', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const role = req.auth?.role;
+    let group: string | undefined;
+    if (role === 'admin') {
+      group = typeof req.query.group === 'string' && req.query.group ? req.query.group : undefined;
+    } else if (role === 'curator') {
+      group = (await getCuratorGroup(req)) ?? undefined;
+    } else {
+      const student = await getStudentByUserId(req.auth!.userId);
+      group = student?.group ?? undefined;
+    }
+    const data = await getSchedule(group);
+    res.json({ success: true, data });
+  } catch {
+    res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+router.post('/schedule', requireAdminOrCurator, async (req: Request, res: Response) => {
+  try {
+    const data = scheduleCreateSchema.parse(req.body);
+    const curatorGroup = req.auth?.role === 'curator' ? await getCuratorGroup(req) : null;
+    if (curatorGroup && data.group !== curatorGroup) {
+      return res.status(403).json({ success: false, error: 'Куратор может вести расписание только своей группы' });
+    }
+    const existing = await getSchedule(data.group);
+    if (existing.some((e) => e.dayOfWeek === data.dayOfWeek && e.lessonNumber === data.lessonNumber)) {
+      return res.status(400).json({ success: false, error: 'Ячейка расписания уже заполнена — используйте обновление' });
+    }
+    const entry = await createScheduleEntry({ ...data, teacher: data.teacher ?? null, room: data.room ?? null });
+    logAudit('create', 'schedule', entry.id, req.auth?.role, { group: data.group, dayOfWeek: data.dayOfWeek, lessonNumber: data.lessonNumber });
+    res.status(201).json({ success: true, data: entry });
+  } catch (err: any) {
+    if (err.name === 'ZodError') {
+      return res.status(400).json({ success: false, error: 'Ошибка валидации', details: err.errors });
+    }
+    res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+router.put('/schedule/:id', requireAdminOrCurator, async (req: Request, res: Response) => {
+  try {
+    const data = scheduleUpdateSchema.parse(req.body);
+    const existing = await getSchedule().then((list) => list.find((e) => e.id === req.params.id));
+    if (!existing) return res.status(404).json({ success: false, error: 'Запись расписания не найдена' });
+    const curatorGroup = req.auth?.role === 'curator' ? await getCuratorGroup(req) : null;
+    if (curatorGroup && existing.group !== curatorGroup) {
+      return res.status(403).json({ success: false, error: 'Недостаточно прав' });
+    }
+    const entry = await updateScheduleEntry(req.params.id, data);
+    logAudit('update', 'schedule', req.params.id, req.auth?.role, { group: existing.group });
+    res.json({ success: true, data: entry });
+  } catch (err: any) {
+    if (err.name === 'ZodError') {
+      return res.status(400).json({ success: false, error: 'Ошибка валидации', details: err.errors });
+    }
+    res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+router.delete('/schedule/:id', requireAdminOrCurator, async (req: Request, res: Response) => {
+  try {
+    const existing = await getSchedule().then((list) => list.find((e) => e.id === req.params.id));
+    if (!existing) return res.status(404).json({ success: false, error: 'Запись расписания не найдена' });
+    const curatorGroup = req.auth?.role === 'curator' ? await getCuratorGroup(req) : null;
+    if (curatorGroup && existing.group !== curatorGroup) {
+      return res.status(403).json({ success: false, error: 'Недостаточно прав' });
+    }
+    const deleted = await deleteScheduleEntry(req.params.id);
+    logAudit('delete', 'schedule', req.params.id, req.auth?.role, { group: existing.group });
+    res.json({ success: true, data: { deleted } });
+  } catch {
+    res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+router.delete('/schedule', requireAdminOrCurator, async (req: Request, res: Response) => {
+  try {
+    const group = typeof req.query.group === 'string' && req.query.group ? req.query.group : undefined;
+    if (!group) return res.status(400).json({ success: false, error: 'Передайте group' });
+    const curatorGroup = req.auth?.role === 'curator' ? await getCuratorGroup(req) : null;
+    if (curatorGroup && group !== curatorGroup) {
+      return res.status(403).json({ success: false, error: 'Недостаточно прав' });
+    }
+    const deleted = await deleteScheduleByGroup(group);
+    logAudit('delete-all', 'schedule', undefined, req.auth?.role, { group, deleted });
+    res.json({ success: true, data: { deleted } });
+  } catch {
+    res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+router.get('/marks/me', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const student = await getStudentByUserId(req.auth!.userId);
+    if (!student) return res.json({ success: true, data: [] });
+    const data = await getMarksByStudent(student.id);
+    res.json({ success: true, data });
+  } catch {
+    res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+router.get('/students/me/marks', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const student = await getStudentByUserId(req.auth!.userId);
+    if (!student) return res.json({ success: true, data: [] });
+    const data = await getMarksByStudent(student.id);
+    res.json({ success: true, data });
+  } catch {
+    res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+router.get('/students/:id/marks', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const student = await getStudentById(req.params.id);
+    if (!student) return res.status(404).json({ success: false, error: 'Студент не найден' });
+    if (req.auth?.role === 'curator') {
+      const curatorGroup = await getCuratorGroup(req);
+      if (!curatorGroup || student.group !== curatorGroup) {
+        return res.status(403).json({ success: false, error: 'Недостаточно прав' });
+      }
+    } else if (req.auth?.role !== 'admin' && student.userId !== req.auth?.userId) {
+      return res.status(403).json({ success: false, error: 'Недостаточно прав' });
+    }
+    const data = await getMarksByStudent(student.id);
+    res.json({ success: true, data });
+  } catch {
+    res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+router.post('/students/:id/marks', requireAdminOrCurator, async (req: Request, res: Response) => {
+  try {
+    const data = markSchema.parse(req.body);
+    const student = await getStudentById(req.params.id);
+    if (!student) return res.status(404).json({ success: false, error: 'Студент не найден' });
+    const curatorGroup = req.auth?.role === 'curator' ? await getCuratorGroup(req) : null;
+    if (curatorGroup && student.group !== curatorGroup) {
+      return res.status(403).json({ success: false, error: 'Куратор может ставить оценки только студентам своей группы' });
+    }
+    const record = await addMark(student.id, data.subjectId, data.mark);
+    logAudit('create', 'mark', record.id, req.auth?.role, { studentId: student.id, subjectId: data.subjectId, mark: data.mark });
+    void triggerWebhook('mark.created', record).catch(() => {});
+    res.status(201).json({ success: true, data: record });
+  } catch (err: any) {
+    if (err.name === 'ZodError') {
+      return res.status(400).json({ success: false, error: 'Ошибка валидации', details: err.errors });
+    }
+    res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+router.put('/marks/:id', requireAdminOrCurator, async (req: Request, res: Response) => {
+  try {
+    const data = markUpdateSchema.parse(req.body);
+    const record = await getMarkById(req.params.id);
+    if (!record) return res.status(404).json({ success: false, error: 'Оценка не найдена' });
+    const student = await getStudentById(record.studentId);
+    if (!student) return res.status(404).json({ success: false, error: 'Студент не найден' });
+    const curatorGroup = req.auth?.role === 'curator' ? await getCuratorGroup(req) : null;
+    if (curatorGroup && student.group !== curatorGroup) {
+      return res.status(403).json({ success: false, error: 'Куратор может редактировать оценки только своей группы' });
+    }
+    const updated = await updateMark(req.params.id, data.mark);
+    logAudit('update', 'mark', req.params.id, req.auth?.role, { studentId: student.id, mark: data.mark });
+    void triggerWebhook('mark.updated', updated).catch(() => {});
+    res.json({ success: true, data: updated });
+  } catch (err: any) {
+    if (err.name === 'ZodError') {
+      return res.status(400).json({ success: false, error: 'Ошибка валидации', details: err.errors });
+    }
+    res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+router.delete('/marks/:id', requireAdminOrCurator, async (req: Request, res: Response) => {
+  try {
+    const record = await getMarkById(req.params.id);
+    if (!record) return res.status(404).json({ success: false, error: 'Оценка не найдена' });
+    const student = await getStudentById(record.studentId);
+    const curatorGroup = req.auth?.role === 'curator' ? await getCuratorGroup(req) : null;
+    if (curatorGroup && (!student || student.group !== curatorGroup)) {
+      return res.status(403).json({ success: false, error: 'Недостаточно прав' });
+    }
+    const deleted = await deleteMark(req.params.id);
+    logAudit('delete', 'mark', req.params.id, req.auth?.role, { studentId: record.studentId });
+    void triggerWebhook('mark.deleted', { id: req.params.id, deleted }).catch(() => {});
+    res.json({ success: true, data: { deleted } });
+  } catch {
+    res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+router.put('/admin/users/:id', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const data = userAdminUpdateSchema.parse(req.body);
+    if (req.params.id === req.auth!.userId && data.role && data.role !== 'admin') {
+      return res.status(400).json({ success: false, error: 'Нельзя изменить собственную роль' });
+    }
+    const user = await updateUserRoleAndGroup(req.params.id, data);
+    if (!user) return res.status(404).json({ success: false, error: 'Пользователь не найден' });
+    logAudit('update', 'user', user.id, req.auth?.role, { role: user.role, group: user.group ?? null });
+    res.json({ success: true, data: user });
+  } catch (err: any) {
+    if (err.name === 'ZodError') {
+      return res.status(400).json({ success: false, error: 'Ошибка валидации', details: err.errors });
+    }
     res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
   }
 });

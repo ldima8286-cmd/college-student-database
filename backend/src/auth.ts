@@ -5,7 +5,13 @@ import crypto from 'crypto';
 import { env } from './env.js';
 import { findUserByEmail, getUserById } from './db.js';
 
-export type Role = 'admin' | 'user';
+export type Role = 'admin' | 'curator' | 'user';
+
+const ALLOWED_ROLES: Role[] = ['admin', 'curator', 'user'];
+
+export function normalizeRole(role?: string | null): Role {
+  return role && ALLOWED_ROLES.includes(role as Role) ? (role as Role) : 'user';
+}
 
 interface TokenPayload {
   userId: string;
@@ -99,7 +105,7 @@ export async function authenticate(email: string, password: string): Promise<Aut
   const user = await findUserByEmail(email.toLowerCase());
   if (!user) return null;
   if (!(await comparePassword(password, user.passwordHash))) return null;
-  const role = user.role === 'admin' ? 'admin' : 'user';
+  const role = normalizeRole(user.role);
   return {
     accessToken: signAccessToken({ id: user.id, email: user.email, role }),
     refreshToken: signRefreshToken(user.id),
@@ -109,7 +115,7 @@ export async function authenticate(email: string, password: string): Promise<Aut
 
 export async function issueTokens(userId: string): Promise<AuthSession> {
   const user = await getUserById(userId);
-  const role = user?.role === 'admin' ? 'admin' : 'user';
+  const role = normalizeRole(user?.role);
   return {
     accessToken: signAccessToken({ id: userId, email: user?.email ?? '', role }),
     refreshToken: signRefreshToken(userId),
@@ -190,6 +196,16 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
 export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
   requireAuth(req, res, () => {
     if (req.auth?.role !== 'admin') {
+      res.status(403).json({ success: false, error: 'Недостаточно прав' });
+      return;
+    }
+    next();
+  });
+}
+
+export function requireAdminOrCurator(req: Request, res: Response, next: NextFunction): void {
+  requireAuth(req, res, () => {
+    if (req.auth?.role !== 'admin' && req.auth?.role !== 'curator') {
       res.status(403).json({ success: false, error: 'Недостаточно прав' });
       return;
     }

@@ -217,6 +217,15 @@ export default function AdminPanel() {
               <Link to="/admin/audit" className="btn btn-ghost text-sm flex items-center gap-1">
                 <FileText className="w-4 h-4" /> <span className="hidden sm:inline">Аудит</span>
               </Link>
+              <Link to="/admin/schedule" className="btn btn-ghost text-sm flex items-center gap-1">
+                <Clock className="w-4 h-4" /> <span className="hidden sm:inline">Расписание</span>
+              </Link>
+              <Link to="/admin/subjects" className="btn btn-ghost text-sm flex items-center gap-1">
+                <BookOpen className="w-4 h-4" /> <span className="hidden sm:inline">Предметы</span>
+              </Link>
+              <Link to="/admin/users" className="btn btn-ghost text-sm flex items-center gap-1">
+                <Users className="w-4 h-4" /> <span className="hidden sm:inline">Пользователи</span>
+              </Link>
               <Link to="/admin/profile" className="btn btn-ghost text-sm flex items-center gap-1">
                 <User className="w-4 h-4" />
               </Link>

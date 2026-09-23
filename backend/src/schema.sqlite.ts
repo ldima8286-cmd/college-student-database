@@ -9,6 +9,7 @@ export const users = sqliteTable('users', {
   role: text('role').notNull().default('user'),
   avatar: text('avatar'),
   phone: text('phone'),
+  group: text('group'),
   createdAt: text('createdAt').notNull(),
   updatedAt: text('updatedAt').notNull(),
 });
@@ -51,4 +52,38 @@ export const auditLog = sqliteTable('auditLog', {
   createdAt: text('createdAt').notNull(),
 }, (t) => [
   index('idx_audit_log_created_at').on(t.createdAt),
+]);
+
+export const subjects = sqliteTable('subjects', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull().unique(),
+  createdAt: text('createdAt').notNull(),
+});
+
+export const schedule = sqliteTable('schedule', {
+  id: text('id').primaryKey(),
+  group: text('group').notNull(),
+  dayOfWeek: integer('dayOfWeek').notNull(),
+  lessonNumber: integer('lessonNumber').notNull(),
+  subject: text('subject').notNull(),
+  teacher: text('teacher'),
+  room: text('room'),
+  createdAt: text('createdAt').notNull(),
+  updatedAt: text('updatedAt').notNull(),
+}, (t) => [
+  check('schedule_day_check', sql`${t.dayOfWeek} >= 1 AND ${t.dayOfWeek} <= 7`),
+  check('schedule_lesson_check', sql`${t.lessonNumber} >= 1 AND ${t.lessonNumber} <= 10`),
+  index('idx_schedule_group_day').on(t.group, t.dayOfWeek, t.lessonNumber),
+]);
+
+export const marks = sqliteTable('marks', {
+  id: text('id').primaryKey(),
+  studentId: text('studentId').notNull().references(() => students.id, { onDelete: 'cascade' }),
+  subjectId: text('subjectId').notNull().references(() => subjects.id, { onDelete: 'cascade' }),
+  mark: integer('mark').notNull(),
+  createdAt: text('createdAt').notNull(),
+}, (t) => [
+  check('mark_check', sql`${t.mark} >= 2 AND ${t.mark} <= 5`),
+  index('idx_marks_student').on(t.studentId),
+  index('idx_marks_subject').on(t.subjectId),
 ]);

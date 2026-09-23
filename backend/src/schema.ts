@@ -10,6 +10,7 @@ export const users = pgTable('users', {
   role: text('role').notNull().default('user'),
   avatar: text('avatar'),
   phone: text('phone'),
+  group: text('group'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
@@ -52,6 +53,40 @@ export const auditLog = pgTable('audit_log', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   index('idx_audit_log_created_at').on(t.createdAt),
+]);
+
+export const subjects = pgTable('subjects', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull().unique(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const schedule = pgTable('schedule', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  group: text('group').notNull(),
+  dayOfWeek: integer('day_of_week').notNull(),
+  lessonNumber: integer('lesson_number').notNull(),
+  subject: text('subject').notNull(),
+  teacher: text('teacher'),
+  room: text('room'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  check('schedule_day_check', sql`${t.dayOfWeek} >= 1 AND ${t.dayOfWeek} <= 7`),
+  check('schedule_lesson_check', sql`${t.lessonNumber} >= 1 AND ${t.lessonNumber} <= 10`),
+  index('idx_schedule_group_day').on(t.group, t.dayOfWeek, t.lessonNumber),
+]);
+
+export const marks = pgTable('marks', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  studentId: uuid('student_id').notNull().references(() => students.id, { onDelete: 'cascade' }),
+  subjectId: uuid('subject_id').notNull().references(() => subjects.id, { onDelete: 'cascade' }),
+  mark: integer('mark').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  check('mark_check', sql`${t.mark} >= 2 AND ${t.mark} <= 5`),
+  index('idx_marks_student').on(t.studentId),
+  index('idx_marks_subject').on(t.subjectId),
 ]);
 
 export type Student = InferSelectModel<typeof students>;

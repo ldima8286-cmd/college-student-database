@@ -3,6 +3,7 @@ import { Student } from '../types';
 import { createStudent, updateStudent } from '../api';
 import { toast } from 'react-hot-toast';
 import { Save, X, User, BookOpen, Users, Percent, GraduationCap, Mail, Phone } from 'lucide-react';
+import { sanitizePhone, PHONE_MAX_LENGTH, isValidPhone } from '../utils/phone';
 
 interface Props {
   editingStudent: Student | null;
@@ -46,6 +47,7 @@ export default function StudentForm({ editingStudent, onSuccess, onCancel }: Pro
     if (form.attendance < 0 || form.attendance > 100) errs.attendance = '0-100';
     if (form.performance < 0 || form.performance > 5) errs.performance = '0-5';
     if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = 'Некорректный email';
+    if (form.phone && !isValidPhone(form.phone)) errs.phone = 'Телефон: только цифры, максимум 15';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -122,8 +124,9 @@ export default function StudentForm({ editingStudent, onSuccess, onCancel }: Pro
 
         <div>
           <label className="label flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" /> Телефон</label>
-          <input type="tel" value={form.phone || ''} onChange={(e) => setForm({ ...form, phone: e.target.value })}
-            className="input" placeholder="+7 (___) ___-__-__" />
+          <input type="tel" value={form.phone || ''} onChange={(e) => setForm({ ...form, phone: sanitizePhone(e.target.value) })}
+            className={`input ${errors.phone ? 'border-red-500' : ''}`} placeholder="+7 (___) ___-__-__" maxLength={PHONE_MAX_LENGTH} />
+          {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
         </div>
 
         <div>

@@ -5,7 +5,7 @@ import {
   BookOpen, User,
 } from 'lucide-react';
 import { Student, SortField, SortOrder, ViewMode } from '../types';
-import { getStudents, getStats, toggleDebt, getRole, logout, getMe } from '../api';
+import { getStudents, getStats, toggleDebt, getRole, logout, getMe, isCurator } from '../api';
 import { toast } from 'react-hot-toast';
 import StudentTable from '../components/StudentTable';
 import StudentCards from '../components/StudentCards';
@@ -15,7 +15,8 @@ import ThemeToggle from '../components/ThemeToggle';
 import ImportExport from '../components/ImportExport';
 import Pagination from '../components/Pagination';
 import InstallPWA from '../components/InstallPWA';
-import MyStudentCard from '../components/MyStudentCard';
+import StudentDiary from './StudentDiary';
+import CuratorPanel from './CuratorPanel';
 
 export default function Dashboard() {
   const [students, setStudents] = useState<Student[]>([]);
@@ -35,13 +36,14 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const role = getRole();
   const isUserAdmin = role === 'admin';
+  const isUserCurator = isCurator();
 
   useEffect(() => {
-    if (!isUserAdmin) return;
+    if (!isUserAdmin && !isUserCurator) return;
     let cancelled = false;
     getMe().then((u) => { if (!cancelled) setAvatar(u?.avatar || ''); }).catch(() => {});
     return () => { cancelled = true; };
-  }, [isUserAdmin]);
+  }, [isUserAdmin, isUserCurator]);
 
   useEffect(() => {
     const timer = setTimeout(() => { setDebouncedSearch(searchTerm); setPage(1); }, 300);
@@ -118,15 +120,17 @@ export default function Dashboard() {
               <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                 isUserAdmin
                   ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                  : isUserCurator
+                    ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
               }`}>
-                {isUserAdmin ? 'Админ' : 'Студент'}
+                {isUserAdmin ? 'Админ' : isUserCurator ? 'Куратор' : 'Студент'}
               </span>
             </div>
             <div className="flex items-center gap-2">
               <ThemeToggle />
               <InstallPWA />
-              {isUserAdmin && (
+              {(isUserAdmin || isUserCurator) && (
                 <Link to="/admin/profile" className="btn btn-ghost text-sm flex items-center gap-1">
                   {avatar ? (
                     <img src={avatar} alt="Аватар" className="w-7 h-7 rounded-full object-cover" />
@@ -150,7 +154,8 @@ export default function Dashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {!isUserAdmin && <MyStudentCard />}
+        {isUserCurator && <CuratorPanel />}
+        {(!isUserAdmin && !isUserCurator) && <StudentDiary />}
         {isUserAdmin && (
           <>
         <StatsPanel stats={stats} /><ChartsPanel stats={stats} />

@@ -27,15 +27,43 @@ export interface UserRecord {
   role: string;
   avatar: string | null;
   phone: string | null;
+  group: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Subject {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+export interface ScheduleEntry {
+  id: string;
+  group: string;
+  dayOfWeek: number;
+  lessonNumber: number;
+  subject: string;
+  teacher: string | null;
+  room: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MarkRecord {
+  id: string;
+  studentId: string;
+  subjectId: string;
+  subjectName?: string;
+  mark: number;
+  createdAt: string;
 }
 
 type SortOrder = 'asc' | 'desc';
 
 interface DbModule {
   ensureSchema?(): Promise<void>;
-  getAllStudents(search?: string, page?: number, limit?: number, sortBy?: string, sortOrder?: SortOrder, filterDebt?: boolean, filterCourse?: number, filterStatus?: StudentStatus): Promise<{ students: Student[]; total: number }>;
+  getAllStudents(search?: string, page?: number, limit?: number, sortBy?: string, sortOrder?: SortOrder, filterDebt?: boolean, filterCourse?: number, filterStatus?: StudentStatus, filterGroup?: string): Promise<{ students: Student[]; total: number }>;
   getStudentById(id: string): Promise<Student | undefined>;
   getStudentByUserId(userId: string): Promise<Student | undefined>;
   createStudent(data: Omit<Student, 'id' | 'createdAt' | 'updatedAt'>): Promise<Student>;
@@ -54,10 +82,25 @@ interface DbModule {
   getAuditLogs(page?: number, limit?: number, entity?: string, action?: string): Promise<{ data: any[]; total: number }>;
   findUserByEmail(email: string): Promise<UserRecord | undefined>;
   getUserById(id: string): Promise<UserRecord | undefined>;
-  createUser(data: { email: string; passwordHash: string; fullName: string; role?: string; avatar?: string | null; phone?: string | null }): Promise<UserRecord>;
+  createUser(data: { email: string; passwordHash: string; fullName: string; role?: string; avatar?: string | null; phone?: string | null; group?: string | null }): Promise<UserRecord>;
   updateUser(id: string, data: { fullName?: string; avatar?: string | null; phone?: string | null }): Promise<UserRecord | null>;
   updateUserPassword(id: string, passwordHash: string): Promise<boolean>;
   getAllUsers(): Promise<UserRecord[]>;
+  updateUserRoleAndGroup(id: string, data: { role?: string; group?: string | null }): Promise<UserRecord | null>;
+  getGroups(): Promise<string[]>;
+  listSubjects(): Promise<Subject[]>;
+  createSubject(name: string): Promise<Subject>;
+  deleteSubject(id: string): Promise<boolean>;
+  getSchedule(group?: string): Promise<ScheduleEntry[]>;
+  createScheduleEntry(data: Omit<ScheduleEntry, 'id' | 'createdAt' | 'updatedAt'>): Promise<ScheduleEntry>;
+  updateScheduleEntry(id: string, data: Partial<Omit<ScheduleEntry, 'id' | 'createdAt' | 'updatedAt'>>): Promise<ScheduleEntry | null>;
+  deleteScheduleEntry(id: string): Promise<boolean>;
+  deleteScheduleByGroup(group: string): Promise<number>;
+  getMarksByStudent(studentId: string): Promise<MarkRecord[]>;
+  getMarkById(id: string): Promise<MarkRecord | undefined>;
+  addMark(studentId: string, subjectId: string, mark: number): Promise<MarkRecord>;
+  updateMark(id: string, mark: number): Promise<MarkRecord | null>;
+  deleteMark(id: string): Promise<boolean>;
   rawDb: any;
 }
 
@@ -139,6 +182,52 @@ export async function updateUserPassword(...args: Parameters<DbModule['updateUse
 }
 export async function getAllUsers(...args: Parameters<DbModule['getAllUsers']>) {
   return (await getDbModule()).getAllUsers(...args);
+}
+
+export async function updateUserRoleAndGroup(...args: Parameters<DbModule['updateUserRoleAndGroup']>) {
+  return (await getDbModule()).updateUserRoleAndGroup(...args);
+}
+export async function getGroups(...args: Parameters<DbModule['getGroups']>) {
+  return (await getDbModule()).getGroups(...args);
+}
+export async function listSubjects(...args: Parameters<DbModule['listSubjects']>) {
+  return (await getDbModule()).listSubjects(...args);
+}
+export async function createSubject(...args: Parameters<DbModule['createSubject']>) {
+  return (await getDbModule()).createSubject(...args);
+}
+export async function deleteSubject(...args: Parameters<DbModule['deleteSubject']>) {
+  return (await getDbModule()).deleteSubject(...args);
+}
+export async function getSchedule(...args: Parameters<DbModule['getSchedule']>) {
+  return (await getDbModule()).getSchedule(...args);
+}
+export async function createScheduleEntry(...args: Parameters<DbModule['createScheduleEntry']>) {
+  return (await getDbModule()).createScheduleEntry(...args);
+}
+export async function updateScheduleEntry(...args: Parameters<DbModule['updateScheduleEntry']>) {
+  return (await getDbModule()).updateScheduleEntry(...args);
+}
+export async function deleteScheduleEntry(...args: Parameters<DbModule['deleteScheduleEntry']>) {
+  return (await getDbModule()).deleteScheduleEntry(...args);
+}
+export async function deleteScheduleByGroup(...args: Parameters<DbModule['deleteScheduleByGroup']>) {
+  return (await getDbModule()).deleteScheduleByGroup(...args);
+}
+export async function getMarksByStudent(...args: Parameters<DbModule['getMarksByStudent']>) {
+  return (await getDbModule()).getMarksByStudent(...args);
+}
+export async function getMarkById(...args: Parameters<DbModule['getMarkById']>) {
+  return (await getDbModule()).getMarkById(...args);
+}
+export async function addMark(...args: Parameters<DbModule['addMark']>) {
+  return (await getDbModule()).addMark(...args);
+}
+export async function updateMark(...args: Parameters<DbModule['updateMark']>) {
+  return (await getDbModule()).updateMark(...args);
+}
+export async function deleteMark(...args: Parameters<DbModule['deleteMark']>) {
+  return (await getDbModule()).deleteMark(...args);
 }
 
 export let db: any = null;

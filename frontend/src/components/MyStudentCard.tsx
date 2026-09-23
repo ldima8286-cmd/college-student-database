@@ -3,6 +3,7 @@ import { Student } from '../types';
 import { getMyStudent, saveMyStudent, getMe } from '../api';
 import { toast } from 'react-hot-toast';
 import { Save, X, User, BookOpen, Users, Mail, Phone, IdCard, Clock, CheckCircle2, Pencil } from 'lucide-react';
+import { sanitizePhone, PHONE_MAX_LENGTH, isValidPhone } from '../utils/phone';
 
 const emptyForm = {
   fullName: '',
@@ -55,6 +56,7 @@ export default function MyStudentCard() {
     if (!form.group.trim()) errs.group = 'Введите группу';
     if (!form.specialty.trim()) errs.specialty = 'Введите специальность';
     if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = 'Некорректный email';
+    if (form.phone && !isValidPhone(form.phone)) errs.phone = 'Телефон: только цифры, максимум 15';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -198,8 +200,9 @@ export default function MyStudentCard() {
 
           <div>
             <label className="label flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" /> Телефон</label>
-            <input type="tel" value={form.phone || ''} onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              className="input" placeholder="+7 (___) ___-__-__" />
+            <input type="tel" value={form.phone || ''} onChange={(e) => setForm({ ...form, phone: sanitizePhone(e.target.value) })}
+              className={`input ${errors.phone ? 'border-red-500' : ''}`} placeholder="+7 (___) ___-__-__" maxLength={PHONE_MAX_LENGTH} />
+            {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
           </div>
 
           <div className="sm:col-span-2 flex gap-3">

@@ -1,7 +1,7 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
-import { Student, StudentStatus, PaginatedResponse, StudentStats, ApiResponse } from './types';
+import { Student, StudentStatus, PaginatedResponse, StudentStats, ApiResponse, Role, Subject, ScheduleEntry, MarkRecord, AdminUser } from './types';
 
-export type Role = 'admin' | 'user';
+export type { Role };
 
 const AUTH_PATHS = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/forgot-password', '/auth/reset-password'];
 
@@ -113,7 +113,7 @@ export async function resetPassword(token: string, newPassword: string): Promise
 
 export function getRole(): Role | null {
   const role = getCookie('role');
-  return role === 'admin' || role === 'user' ? role : null;
+  return role === 'admin' || role === 'curator' || role === 'user' ? role : null;
 }
 
 export function isAuthenticated(): boolean {
@@ -122,6 +122,10 @@ export function isAuthenticated(): boolean {
 
 export function isAdmin(): boolean {
   return getRole() === 'admin';
+}
+
+export function isCurator(): boolean {
+  return getRole() === 'curator';
 }
 
 export async function getStudents(params: {
@@ -247,5 +251,97 @@ export async function batchUpdateStudents(ids: string[], patch: Partial<Student>
 export async function batchExportStudents(ids?: string[]): Promise<any[]> {
   const { data } = await api.post('/students/batch-export', { ids });
   if (!data.success || !data.data) throw new Error('Ошибка экспорта');
+  return data.data;
+}
+
+export async function getGroups(): Promise<string[]> {
+  const { data } = await api.get<ApiResponse<string[]>>('/groups');
+  if (!data.success || !data.data) throw new Error('Ошибка загрузки групп');
+  return data.data;
+}
+
+export async function listSubjects(): Promise<Subject[]> {
+  const { data } = await api.get<ApiResponse<Subject[]>>('/subjects');
+  if (!data.success || !data.data) throw new Error('Ошибка загрузки предметов');
+  return data.data;
+}
+
+export async function createSubject(name: string): Promise<Subject> {
+  const { data } = await api.post<ApiResponse<Subject>>('/subjects', { name });
+  if (!data.success || !data.data) throw new Error(data.error || 'Ошибка создания предмета');
+  return data.data;
+}
+
+export async function deleteSubject(id: string): Promise<void> {
+  const { data } = await api.delete<ApiResponse<{ deleted: boolean }>>(`/subjects/${id}`);
+  if (!data.success) throw new Error(data.error || 'Ошибка удаления предмета');
+}
+
+export async function getSchedule(group?: string): Promise<ScheduleEntry[]> {
+  const { data } = await api.get<ApiResponse<ScheduleEntry[]>>('/schedule', { params: group ? { group } : {} });
+  if (!data.success || !data.data) throw new Error('Ошибка загрузки расписания');
+  return data.data;
+}
+
+export async function createScheduleEntry(entry: Omit<ScheduleEntry, 'id' | 'createdAt' | 'updatedAt'>): Promise<ScheduleEntry> {
+  const { data } = await api.post<ApiResponse<ScheduleEntry>>('/schedule', entry);
+  if (!data.success || !data.data) throw new Error(data.error || 'Ошибка сохранения расписания');
+  return data.data;
+}
+
+export async function updateScheduleEntry(id: string, entry: Partial<Omit<ScheduleEntry, 'id' | 'createdAt' | 'updatedAt'>>): Promise<ScheduleEntry> {
+  const { data } = await api.put<ApiResponse<ScheduleEntry>>(`/schedule/${id}`, entry);
+  if (!data.success || !data.data) throw new Error(data.error || 'Ошибка обновления расписания');
+  return data.data;
+}
+
+export async function deleteScheduleEntry(id: string): Promise<void> {
+  const { data } = await api.delete<ApiResponse<{ deleted: boolean }>>(`/schedule/${id}`);
+  if (!data.success) throw new Error(data.error || 'Ошибка удаления');
+}
+
+export async function deleteScheduleByGroup(group: string): Promise<number> {
+  const { data } = await api.delete<ApiResponse<{ deleted: number }>>('/schedule', { params: { group } });
+  return data.data?.deleted ?? 0;
+}
+
+export async function getMyMarks(): Promise<MarkRecord[]> {
+  const { data } = await api.get<ApiResponse<MarkRecord[]>>('/marks/me');
+  if (!data.success || !data.data) throw new Error('Ошибка загрузки оценок');
+  return data.data;
+}
+
+export async function getStudentMarks(studentId: string): Promise<MarkRecord[]> {
+  const { data } = await api.get<ApiResponse<MarkRecord[]>>(`/students/${studentId}/marks`);
+  if (!data.success || !data.data) throw new Error('Ошибка загрузки оценок');
+  return data.data;
+}
+
+export async function addMark(studentId: string, subjectId: string, mark: number): Promise<MarkRecord> {
+  const { data } = await api.post<ApiResponse<MarkRecord>>(`/students/${studentId}/marks`, { subjectId, mark });
+  if (!data.success || !data.data) throw new Error(data.error || 'Ошибка добавления оценки');
+  return data.data;
+}
+
+export async function updateMark(markId: string, mark: number): Promise<MarkRecord> {
+  const { data } = await api.put<ApiResponse<MarkRecord>>(`/marks/${markId}`, { mark });
+  if (!data.success || !data.data) throw new Error(data.error || 'Ошибка обновления оценки');
+  return data.data;
+}
+
+export async function deleteMark(markId: string): Promise<void> {
+  const { data } = await api.delete<ApiResponse<{ deleted: boolean }>>(`/marks/${markId}`);
+  if (!data.success) throw new Error(data.error || 'Ошибка удаления оценки');
+}
+
+export async function getAdminUsers(): Promise<AdminUser[]> {
+  const { data } = await api.get<ApiResponse<AdminUser[]>>('/admin/users');
+  if (!data.success || !data.data) throw new Error('Ошибка загрузки пользователей');
+  return data.data;
+}
+
+export async function updateAdminUser(id: string, patch: { role?: Role; group?: string | null }): Promise<AdminUser> {
+  const { data } = await api.put<ApiResponse<AdminUser>>(`/admin/users/${id}`, patch);
+  if (!data.success || !data.data) throw new Error(data.error || 'Ошибка обновления пользователя');
   return data.data;
 }
