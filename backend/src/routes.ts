@@ -123,7 +123,9 @@ router.post('/auth/login', async (req: Request, res: Response) => {
       return res.status(401).json({ success: false, error: 'Неверный email или пароль' });
     }
     setAuthCookies(res, result);
-    logAudit('login', 'auth', undefined, result.role);
+    if (result.role === 'admin' || result.role === 'curator') {
+      logAudit('login', 'auth', undefined, result.role);
+    }
     res.json({ success: true, data: { role: result.role } });
   } catch (err: any) {
     if (err.name === 'ZodError') {
@@ -157,7 +159,9 @@ router.post('/auth/logout', requireAuth, (req: Request, res: Response) => {
     if (valid) revokeRefreshJti(valid.jti);
   }
   clearAuthCookies(res);
-  logAudit('logout', 'auth', undefined, req.auth?.role);
+  if (req.auth?.role === 'admin' || req.auth?.role === 'curator') {
+    logAudit('logout', 'auth', undefined, req.auth.role);
+  }
   res.json({ success: true });
 });
 

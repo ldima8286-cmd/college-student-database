@@ -282,6 +282,26 @@ export async function getAuditLogs(page: number = 1, limit: number = 50, entity?
   return { data, total };
 }
 
+export async function pruneAuditLogs(): Promise<number> {
+  let deleted = 0;
+  deleted += (await client.unsafe<{ id: number }[]>(
+    `DELETE FROM audit_log WHERE action IN ('login', 'logout') AND entity = 'auth' AND user_id = 'user' RETURNING id`
+  )).length;
+  const cutoff = new Date(Date.now() - env.AUDIT_RETENTION_DAYS * 86400000);
+  deleted += (await client.unsafe<{ id: number }[]>(
+    `DELETE FROM audit_log WHERE created_at < $1 RETURNING id`, [cutoff]
+  )).length;
+  const rows = await client.unsafe<{ count: string }[]>(`SELECT COUNT(*) AS count FROM audit_log`);
+  const total = Number(rows[0]?.count ?? 0);
+  if (total > env.AUDIT_MAX_ROWS) {
+    deleted += (await client.unsafe<{ id: number }[]>(
+      `DELETE FROM audit_log WHERE id IN (SELECT id FROM audit_log ORDER BY created_at DESC OFFSET $1) RETURNING id`,
+      [env.AUDIT_MAX_ROWS]
+    )).length;
+  }
+  return deleted;
+}
+
 export async function findUserByEmail(email: string): Promise<UserRecord | undefined> {
   const rows = await db.select().from(users).where(eq(users.email, email));
   return rows[0] as unknown as UserRecord | undefined;

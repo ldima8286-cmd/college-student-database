@@ -80,6 +80,7 @@ interface DbModule {
   getRecentStudents(limit?: number): Promise<Student[]>;
   logAudit(action: string, entity: string, entityId?: string, userId?: string, details?: any): Promise<void>;
   getAuditLogs(page?: number, limit?: number, entity?: string, action?: string): Promise<{ data: any[]; total: number }>;
+  pruneAuditLogs?(): Promise<number>;
   findUserByEmail(email: string): Promise<UserRecord | undefined>;
   getUserById(id: string): Promise<UserRecord | undefined>;
   createUser(data: { email: string; passwordHash: string; fullName: string; role?: string; avatar?: string | null; phone?: string | null; group?: string | null }): Promise<UserRecord>;
@@ -235,5 +236,6 @@ export async function initDb() {
   const mod = await getDbModule();
   db = mod.rawDb;
   await mod.ensureSchema?.();
+  await mod.pruneAuditLogs?.();
   return mod;
 }

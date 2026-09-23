@@ -1,4 +1,4 @@
-import { cleanEnv, str, port, makeValidator } from 'envalid';
+import { cleanEnv, str, port, num, makeValidator } from 'envalid';
 
 const dbUrl = makeValidator((v) => {
   if (!v) return 'sqlite:./database.sqlite';
@@ -34,4 +34,6 @@ export const env = cleanEnv(process.env, {
   FRONT_URL: str({ default: 'http://localhost:3000' }),
   REDIS_URL: str({ default: '' }),
   RESET_TOKEN_SECRET: str({ default: 'reset-secret-change-in-production' }),
+  AUDIT_RETENTION_DAYS: num({ default: 30 }),
+  AUDIT_MAX_ROWS: num({ default: 2000 }),
 });

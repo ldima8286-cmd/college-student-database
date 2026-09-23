@@ -327,6 +327,22 @@ export async function getAuditLogs(page: number = 1, limit: number = 50, entity?
   return _getAuditLogs(sqliteDb, page, limit, entity, action);
 }
 
+export async function pruneAuditLogs(): Promise<number> {
+  let deleted = 0;
+  deleted += sqliteDb.prepare(
+    `DELETE FROM auditLog WHERE action IN ('login', 'logout') AND entity = 'auth' AND userId = 'user'`
+  ).run().changes;
+  const cutoff = new Date(Date.now() - env.AUDIT_RETENTION_DAYS * 86400000).toISOString();
+  deleted += sqliteDb.prepare(`DELETE FROM auditLog WHERE createdAt < ?`).run(cutoff).changes;
+  const total = (sqliteDb.prepare(`SELECT COUNT(*) as c FROM auditLog`).get() as any).c as number;
+  if (total > env.AUDIT_MAX_ROWS) {
+    deleted += sqliteDb.prepare(
+      `DELETE FROM auditLog WHERE id IN (SELECT id FROM auditLog ORDER BY createdAt DESC LIMIT -1 OFFSET ?)`
+    ).run(env.AUDIT_MAX_ROWS).changes;
+  }
+  return deleted;
+}
+
 export async function findUserByEmail(email: string): Promise<UserRecord | undefined> {
   const row = sqliteDb.prepare('SELECT * FROM users WHERE email = ?').get(email) as any;
   return row ? { ...row } : undefined;
