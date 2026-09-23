@@ -158,12 +158,33 @@ describe('API Routes', () => {
   });
 
   describe('POST /api/auth/register', () => {
+    it('creates user and linked student card with group', async () => {
+      const { createUser } = await import('./db.js');
+      const { createStudent } = await import('./db.js');
+      const res = await request(app)
+        .post('/api/auth/register')
+        .send({ email: 'newuser@college.local', password: 'secret1', fullName: 'New User', group: 'ПО-507', course: 1 });
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(createUser).toHaveBeenCalledWith(expect.objectContaining({ email: 'newuser@college.local', group: 'ПО-507' }));
+      expect(createStudent).toHaveBeenCalledWith(expect.objectContaining({
+        group: 'ПО-507', course: 1, userId: '2', status: 'approved',
+      }));
+    });
+
+    it('rejects registration without a group', async () => {
+      const res = await request(app)
+        .post('/api/auth/register')
+        .send({ email: 'nogroup@college.local', password: 'secret1', fullName: 'No Group' });
+      expect(res.status).toBe(400);
+    });
+
     it('returns 201 even when email already exists (unified response)', async () => {
       const { findUserByEmail } = await import('./db.js');
       (findUserByEmail as any).mockResolvedValueOnce({ id: 'existing', email: 'dup@college.local' });
       const res = await request(app)
         .post('/api/auth/register')
-        .send({ email: 'dup@college.local', password: 'secret1', fullName: 'Dup User' });
+        .send({ email: 'dup@college.local', password: 'secret1', fullName: 'Dup User', group: 'ПО-507', course: 1 });
       expect(res.status).toBe(201);
       expect(res.body.success).toBe(true);
     });
@@ -254,6 +275,23 @@ describe('API Routes', () => {
       expect(res.status).toBe(201);
       expect(res.body.success).toBe(true);
       expect(addMark).toHaveBeenCalledWith('st1', '11111111-1111-1111-1111-111111111111', 5);
+    });
+  it('rejects mark above 10 (10-point scale)', async () => {
+      const { getStudentById } = await import('./db.js');
+      (getStudentById as any).mockResolvedValueOnce({ id: 'st1', group: 'ПО-507', status: 'approved' });
+      const res = await request(app)
+        .post('/api/students/st1/marks')
+        .send({ subjectId: '11111111-1111-1111-1111-111111111111', mark: 11 });
+      expect(res.status).toBe(400);
+    });
+
+    it('rejects mark below 1 (10-point scale)', async () => {
+      const { getStudentById } = await import('./db.js');
+      (getStudentById as any).mockResolvedValueOnce({ id: 'st1', group: 'ПО-507', status: 'approved' });
+      const res = await request(app)
+        .post('/api/students/st1/marks')
+        .send({ subjectId: '11111111-1111-1111-1111-111111111111', mark: 0 });
+      expect(res.status).toBe(400);
     });
   });
 

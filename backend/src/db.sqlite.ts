@@ -98,7 +98,7 @@ sqliteDb.exec(`
     id TEXT PRIMARY KEY,
     studentId TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
     subjectId TEXT NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
-    mark INTEGER NOT NULL CHECK(mark >= 2 AND mark <= 5),
+    mark INTEGER NOT NULL CHECK(mark >= 1 AND mark <= 10),
     createdAt TEXT NOT NULL
   )
 `);
@@ -106,6 +106,24 @@ sqliteDb.exec(`
 export const rawDb: DatabaseType = sqliteDb;
 
 export async function ensureSchema(): Promise<void> {
+  const marksSql = (sqliteDb.prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name='marks'`).get() as any)?.sql ?? '';
+  if (marksSql.includes('mark <= 5')) {
+    sqliteDb.pragma('foreign_keys = OFF');
+    sqliteDb.exec(`
+      CREATE TABLE marks_new (
+        id TEXT PRIMARY KEY,
+        studentId TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+        subjectId TEXT NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+        mark INTEGER NOT NULL CHECK(mark >= 1 AND mark <= 10),
+        createdAt TEXT NOT NULL
+      );
+      INSERT INTO marks_new (id, studentId, subjectId, mark, createdAt)
+        SELECT id, studentId, subjectId, mark, createdAt FROM marks;
+      DROP TABLE marks;
+      ALTER TABLE marks_new RENAME TO marks;
+    `);
+    sqliteDb.pragma('foreign_keys = ON');
+  }
   sqliteDb.exec(`
     CREATE INDEX IF NOT EXISTS idx_students_status ON students(status);
     CREATE INDEX IF NOT EXISTS idx_students_course ON students(course);

@@ -87,9 +87,25 @@ router.post('/auth/register', async (req: Request, res: Response) => {
       passwordHash: await hashPassword(data.password),
       fullName: data.fullName,
       phone: data.phone ?? null,
+      group: data.group,
     });
-    logAudit('register', 'user', user.id, user.role, { email: user.email });
+    logAudit('register', 'user', user.id, user.role, { email: user.email, group: data.group });
     void sendWelcomeEmail(user.email, user.fullName).catch(() => {});
+    const student = await createStudent({
+      fullName: data.fullName,
+      course: data.course ?? 1,
+      group: data.group,
+      specialty: data.specialty ?? '',
+      attendance: 100,
+      performance: 4.0,
+      academicDebt: false,
+      email: data.email,
+      phone: data.phone ?? null,
+      userId: user.id,
+      status: 'approved',
+    });
+    logAudit('create', 'student', student.id, user.id, { fullName: student.fullName, self: true, registered: true, group: data.group });
+    void triggerWebhook('student.created', student).catch(() => {});
     res.status(201).json({ success: true, data: { id: user.id } });
   } catch (err: any) {
     if (err.name === 'ZodError') {
@@ -324,7 +340,6 @@ router.put('/students/me', requireAuth, async (req: Request, res: Response) => {
         specialty: data.specialty,
         email: data.email ?? null,
         phone: data.phone ?? null,
-        status: 'pending',
       });
       logAudit('update', 'student', existing.id, req.auth?.role, { fullName: existing.fullName, self: true });
       invalidateStudentsCache();

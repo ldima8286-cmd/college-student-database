@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { GraduationCap, Mail, Lock, User, Phone, UserPlus, Eye, EyeOff } from 'lucide-react';
+import { GraduationCap, Mail, Lock, User, Users, Phone, UserPlus, Eye, EyeOff } from 'lucide-react';
 import { register } from '../api';
 import { toast } from 'react-hot-toast';
 import { sanitizePhone, PHONE_MAX_LENGTH, isValidPhone } from '../utils/phone';
@@ -11,6 +11,8 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
+  const [group, setGroup] = useState('');
+  const [course, setCourse] = useState(1);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -20,7 +22,7 @@ export default function Register() {
     e.preventDefault();
     setError('');
 
-    if (!email.trim() || !password.trim() || !fullName.trim()) {
+    if (!email.trim() || !password.trim() || !fullName.trim() || !group.trim()) {
       setError('Заполните обязательные поля');
       return;
     }
@@ -39,7 +41,7 @@ export default function Register() {
 
     try {
       setLoading(true);
-      await register({ email, password, fullName, phone: phone || undefined });
+      await register({ email, password, fullName, phone: phone || undefined, group: group.trim(), course });
       toast.success('Регистрация успешна. Войдите в систему.');
       navigate('/login');
     } catch (err: any) {
@@ -110,6 +112,36 @@ export default function Register() {
                 maxLength={PHONE_MAX_LENGTH}
               />
             </div>
+          </div>
+
+          <div className="mb-4">
+            <label className="label">Группа *</label>
+            <div className="relative">
+              <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                value={group}
+                onChange={(e) => setGroup(e.target.value)}
+                className="input pl-10"
+                placeholder="ПО-507"
+                maxLength={50}
+                required
+              />
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Укажите свою учебную группу — так вас увидит куратор группы и администратор.
+            </p>
+          </div>
+
+          <div className="mb-4">
+            <label className="label">Курс *</label>
+            <select
+              value={course}
+              onChange={(e) => setCourse(Number(e.target.value))}
+              className="input"
+            >
+              {[1, 2, 3, 4, 5, 6].map((c) => <option key={c} value={c}>{c} курс</option>)}
+            </select>
           </div>
 
           <div className="mb-4">

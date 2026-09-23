@@ -9,7 +9,7 @@ interface Props {
   studentName: string;
 }
 
-const GRADES = [5, 4, 3, 2];
+const GRADES = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
 
 export default function MarksEditor({ studentId, studentName }: Props) {
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -139,9 +139,9 @@ export default function MarksEditor({ studentId, studentName }: Props) {
                 </>
               )}
               <span className={`inline-flex w-8 h-8 items-center justify-center rounded-md text-sm font-bold ${
-                m.mark >= 5 ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
-                : m.mark === 4 ? 'bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300'
-                : m.mark === 3 ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
+                m.mark >= 9 ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
+                : m.mark >= 7 ? 'bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300'
+                : m.mark >= 4 ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
                 : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
               }`}>
                 {m.mark}

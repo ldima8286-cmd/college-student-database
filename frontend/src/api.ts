@@ -210,7 +210,10 @@ export async function getAnalytics(): Promise<any> {
   return data.data;
 }
 
-export async function register(data: { email: string; password: string; fullName: string; phone?: string }): Promise<void> {
+export async function register(data: {
+  email: string; password: string; fullName: string; phone?: string;
+  group: string; course: number; specialty?: string;
+}): Promise<void> {
   const res = await api.post<ApiResponse<void>>('/auth/register', data);
   if (!res.data.success) throw new Error(res.data.error || 'Ошибка регистрации');
 }

@@ -48,6 +48,9 @@ export const registerSchema = z.object({
   password: z.string().min(6, 'Минимум 6 символов').max(200),
   fullName: z.string().min(2, 'ФИО минимум 2 символа').max(200),
   phone: phoneField,
+  group: z.string().min(1, 'Укажите группу').max(50),
+  course: z.number().int('Курс — целое число').min(1, 'Курс от 1').max(6, 'Курс до 6').default(1),
+  specialty: z.string().max(200).optional(),
 });
 
 export const loginSchema = z.object({
@@ -123,11 +126,11 @@ export const scheduleUpdateSchema = scheduleCreateSchema.partial().refine((p) =>
 
 export const markSchema = z.object({
   subjectId: z.string().uuid('Некорректный ID предмета'),
-  mark: z.number().int('Оценка — целое число').min(2, 'Оценка от 2').max(5, 'Оценка до 5'),
+  mark: z.number().int('Оценка — целое число').min(1, 'Оценка от 1').max(10, 'Оценка до 10'),
 });
 
 export const markUpdateSchema = z.object({
-  mark: z.number().int('Оценка — целое число').min(2, 'Оценка от 2').max(5, 'Оценка до 5'),
+  mark: z.number().int('Оценка — целое число').min(1, 'Оценка от 1').max(10, 'Оценка до 10'),
 });
 
 export const userAdminUpdateSchema = z.object({

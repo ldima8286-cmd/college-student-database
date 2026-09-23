@@ -80,12 +80,14 @@ export async function ensureSchema(): Promise<void> {
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       student_id uuid NOT NULL REFERENCES students(id) ON DELETE CASCADE,
       subject_id uuid NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
-      mark INTEGER NOT NULL CHECK(mark >= 2 AND mark <= 5),
+      mark INTEGER NOT NULL CHECK(mark >= 1 AND mark <= 10),
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
     CREATE INDEX IF NOT EXISTS idx_schedule_group_day ON schedule("group", day_of_week, lesson_number);
     CREATE INDEX IF NOT EXISTS idx_marks_student ON marks(student_id);
     CREATE INDEX IF NOT EXISTS idx_marks_subject ON marks(subject_id);
+    ALTER TABLE marks DROP CONSTRAINT IF EXISTS marks_mark_check;
+    ALTER TABLE marks ADD CONSTRAINT marks_mark_check CHECK (mark >= 1 AND mark <= 10);
   `);
 }
 

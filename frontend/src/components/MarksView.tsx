@@ -6,9 +6,9 @@ interface Props {
 }
 
 function gradeColor(mark: number): string {
-  if (mark >= 5) return 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300';
-  if (mark === 4) return 'bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300';
-  if (mark === 3) return 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300';
+  if (mark >= 9) return 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300';
+  if (mark >= 7) return 'bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300';
+  if (mark >= 4) return 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300';
   return 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300';
 }
 
