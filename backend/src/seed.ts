@@ -13,7 +13,7 @@ export async function seedUsers(): Promise<void> {
       if (!existing) {
         await createUser({
           email: adminEmail,
-          passwordHash: hashPassword(env.ADMIN_PASSWORD),
+          passwordHash: await hashPassword(env.ADMIN_PASSWORD),
           fullName: 'Администратор',
           role: 'admin',
         });
@@ -24,7 +24,7 @@ export async function seedUsers(): Promise<void> {
     if (!users.some((u) => u.email === env.USER_EMAIL)) {
       await createUser({
         email: env.USER_EMAIL,
-        passwordHash: hashPassword(env.USER_PASSWORD),
+        passwordHash: await hashPassword(env.USER_PASSWORD),
         fullName: 'Пользователь',
         role: 'user',
       });

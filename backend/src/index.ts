@@ -6,6 +6,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { router } from './routes.js';
 import { setupSwagger } from './swagger.js';
+import { compress } from './compress.js';
 import { logger } from './logger.js';
 import { initDb } from './db.js';
 import { seedUsers } from './seed.js';
@@ -39,6 +40,18 @@ app.use(cors({
   credentials: true,
 }));
 
+app.use(compress());
+
+const readLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: env.NODE_ENV === 'production' ? 600 : 4000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.path === '/health' || (req.method !== 'GET' && req.method !== 'HEAD'),
+  message: { success: false, error: 'Слишком много запросов, попробуйте позже' },
+});
+app.use('/api', readLimiter);
+
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200,
@@ -46,8 +59,8 @@ const limiter = rateLimit({
   legacyHeaders: false,
   skip: (req) => {
     if (req.path === '/health') return true;
-    if (req.method === 'GET') return true;
-    return req.method === 'HEAD' || req.method === 'OPTIONS';
+    if (req.method === 'GET' || req.method === 'HEAD') return true;
+    return req.method === 'OPTIONS';
   },
   message: { success: false, error: 'Слишком много запросов, попробуйте позже' },
 });

@@ -91,7 +91,7 @@ export async function getAllStudents(
   const allowedSorts = ['fullName', 'course', 'group', 'specialty', 'attendance', 'performance', 'createdAt'];
   const safeSortBy = allowedSorts.includes(sortBy) ? sortBy : 'fullName';
 
-  let query = `SELECT * FROM students`;
+  let query = `SELECT *, COUNT(*) OVER () AS total FROM students`;
   const conditions: string[] = [];
   const params: any[] = [];
 
@@ -115,16 +115,14 @@ export async function getAllStudents(
 
   if (conditions.length > 0) query += ` WHERE ${conditions.join(' AND ')}`;
 
-  const countRow = sqliteDb.prepare(`SELECT COUNT(*) as count FROM students${conditions.length > 0 ? ' WHERE ' + conditions.join(' AND ') : ''}`).get(...params) as any;
-  const total = countRow?.count ?? 0;
-
   const col = safeSortBy === 'group' ? '"group"' : safeSortBy;
   query += ` ORDER BY ${col} COLLATE NOCASE ${sortOrder === 'desc' ? 'DESC' : 'ASC'}`;
   query += ` LIMIT ? OFFSET ?`;
   params.push(limit, (page - 1) * limit);
 
   const rows = sqliteDb.prepare(query).all(...params) as any[];
-  const students = rows.map(r => ({ ...r, academicDebt: r.academicDebt === 1 }));
+  const total = rows.length > 0 ? Number(rows[0]?.total ?? 0) : 0;
+  const students = rows.map(({ total: _t, ...r }) => ({ ...r, academicDebt: r.academicDebt === 1 }));
 
   return { students, total };
 }

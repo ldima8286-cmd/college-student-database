@@ -53,12 +53,12 @@ function cookieSecure(): boolean {
 
 const activeRefreshes = new Map<string, { userId: string; expiresAt: number }>();
 
-export function hashPassword(password: string): string {
-  return bcrypt.hashSync(password, 10);
+export async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 10);
 }
 
-export function comparePassword(password: string, hash: string): boolean {
-  return bcrypt.compareSync(password, hash);
+export async function comparePassword(password: string, hash: string): Promise<boolean> {
+  return bcrypt.compare(password, hash);
 }
 
 export function signAccessToken(user: { id: string; email: string; role: Role }): string {
@@ -98,7 +98,7 @@ export function verifyRefreshToken(token: string): { userId: string; jti: string
 export async function authenticate(email: string, password: string): Promise<AuthSession | null> {
   const user = await findUserByEmail(email.toLowerCase());
   if (!user) return null;
-  if (!comparePassword(password, user.passwordHash)) return null;
+  if (!(await comparePassword(password, user.passwordHash))) return null;
   const role = user.role === 'admin' ? 'admin' : 'user';
   return {
     accessToken: signAccessToken({ id: user.id, email: user.email, role }),

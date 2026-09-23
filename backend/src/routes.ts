@@ -61,7 +61,7 @@ router.post('/auth/register', async (req: Request, res: Response) => {
     }
     const user = await createUser({
       email: data.email,
-      passwordHash: hashPassword(data.password),
+      passwordHash: await hashPassword(data.password),
       fullName: data.fullName,
       phone: data.phone ?? null,
     });
@@ -148,7 +148,7 @@ router.post('/auth/reset-password', async (req: Request, res: Response) => {
     if (!email) return res.status(400).json({ success: false, error: 'Недействительная или истёкшая ссылка сброса' });
     const user = await findUserByEmail(email.toLowerCase());
     if (!user) return res.status(400).json({ success: false, error: 'Недействительная или истёкшая ссылка сброса' });
-    await updateUserPassword(user.id, hashPassword(newPassword));
+    await updateUserPassword(user.id, await hashPassword(newPassword));
     revokeAllRefreshTokens(user.id);
     clearAuthCookies(res);
     logAudit('reset-password', 'user', user.id, user.role);
@@ -207,10 +207,10 @@ router.put('/auth/me/password', requireAuth, async (req: Request, res: Response)
     const data = changePasswordSchema.parse(req.body);
     const user = await getUserById(req.auth!.userId);
     if (!user) return res.status(404).json({ success: false, error: 'Пользователь не найден' });
-    if (!comparePassword(data.oldPassword, user.passwordHash)) {
+    if (!(await comparePassword(data.oldPassword, user.passwordHash))) {
       return res.status(400).json({ success: false, error: 'Неверный текущий пароль' });
     }
-    await updateUserPassword(req.auth!.userId, hashPassword(data.newPassword));
+    await updateUserPassword(req.auth!.userId, await hashPassword(data.newPassword));
     revokeAllRefreshTokens(req.auth!.userId);
     clearAuthCookies(res);
     logAudit('change-password', 'user', user.id, user.role);

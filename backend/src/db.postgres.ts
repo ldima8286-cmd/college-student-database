@@ -1,6 +1,6 @@
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
-import { eq, sql, like, or, and, count, avg, desc, asc, inArray } from 'drizzle-orm';
+import { eq, sql, like, or, and, count, avg, desc, asc, inArray, getTableColumns } from 'drizzle-orm';
 import { students, auditLog, users } from './schema.js';
 import { env } from './env.js';
 import type { Student, UserRecord } from './db.js';
@@ -80,11 +80,9 @@ export async function getAllStudents(
   if (filterStatus !== undefined) conditions.push(eq(students.status, filterStatus));
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-  const countResult = await db.select({ count: count() }).from(students).where(whereClause);
-  const total = Number(countResult[0]?.count ?? 0);
   const offset = (page - 1) * limit;
 
-  const rows = await db.select().from(students).where(whereClause)
+  const rows = await db.select({ ...getTableColumns(students), total: sql<number>`count(*) over ()` }).from(students).where(whereClause)
     .orderBy(
       safeSortBy === 'fullName' ? orderFn(students.fullName) :
       safeSortBy === 'course' ? orderFn(students.course) :
@@ -96,7 +94,9 @@ export async function getAllStudents(
     )
     .limit(limit).offset(offset);
 
-  return { students: rows as unknown as Student[], total };
+  const pageTotal = rows.length > 0 ? Number(rows[0]?.total ?? 0) : 0;
+  const mapped = rows.map(({ total: _t, ...rest }) => rest);
+  return { students: mapped as unknown as Student[], total: pageTotal };
 }
 
 export async function getStudentById(id: string): Promise<Student | undefined> {
