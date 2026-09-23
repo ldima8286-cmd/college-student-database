@@ -61,7 +61,7 @@
 | **Тёмная тема** | Переключение между светлой и тёмной темами (в т.ч. по системным настройкам) |
 | **PWA** | Установка на устройство, офлайн-режим через Service Worker |
 | **Интеграции** | Вебхуки, email-уведомления (SMTP) |
-| **Безопасность** | Helmet, rate-limiting, CORS, валидация входных данных (Zod), Swagger |
+| **Безопасность** | Helmet, rate-limiting (в т.ч. для GET), CORS, сжатие ответов (gzip/brotli), валидация входных данных (Zod), Swagger |
 | **Адаптивный дизайн** | Корректное отображение на ПК, планшетах и смартфонах |
 
 ---
@@ -92,7 +92,8 @@
 | **Drizzle ORM 0.45** | Работа с БД (SQLite и PostgreSQL) |
 | **better-sqlite3** | Встраиваемая БД для локальной разработки |
 | **JSON Web Token** | Access/refresh-токены авторизации |
-| **bcryptjs** | Хеширование паролей |
+| **bcryptjs** | Асинхронное хеширование паролей |
+| **zlib (Node)** | Сжатие ответов API — brotli/gzip по `Accept-Encoding` |
 | **Zod** | Валидация входных данных |
 | **Winston** | Логирование (файлы `backend/logs/`) |
 | **Helmet + express-rate-limit + CORS** | Безопасность HTTP |
@@ -381,6 +382,9 @@ college-student-database/
 │   │   ├── schema.sqlite.ts    # Схема БД (SQLite)
 │   │   ├── db.postgres.ts      # Клиент PostgreSQL
 │   │   ├── db.sqlite.ts        # Клиент SQLite
+│   │   ├── db.ts               # Единый интерфейс БД и выбор драйвера
+│   │   ├── cache.ts            # Кэш статистики/аналитики
+│   │   ├── compress.ts         # Сжатие ответов (gzip/brotli)
 │   │   ├── audit.ts            # Аудит-лог
 │   │   ├── webhooks.ts         # Вебхуки
 │   │   ├── email.ts            # SMTP-уведомления
