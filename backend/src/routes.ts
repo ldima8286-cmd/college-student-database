@@ -37,6 +37,10 @@ import {
   addMark,
   updateMark,
   deleteMark,
+  recomputeStudentPerformance,
+  getJournalSummaries,
+  getJournalLesson,
+  saveJournalLesson,
 } from './db.js';
 import {
   studentSchema, studentUpdateSchema, studentSelfSchema, querySchema,
@@ -44,6 +48,7 @@ import {
   updateProfileSchema, changePasswordSchema, batchIdsSchema, batchUpdateSchema, webhookSchema,
   forgotPasswordSchema, resetPasswordSchema, subjectSchema,
   scheduleCreateSchema, scheduleUpdateSchema, markSchema, markUpdateSchema, userAdminUpdateSchema,
+  journalQuerySchema, journalDateQuerySchema, journalSaveSchema,
 } from './validation.js';
 import {
   authenticate, requireAuth, requireAdmin, requireCsrf, getAuthInfo,
@@ -787,6 +792,71 @@ router.delete('/schedule', requireAdminOrCurator, async (req: Request, res: Resp
   }
 });
 
+router.get('/journal/summary', requireAdminOrCurator, async (req: Request, res: Response) => {
+  try {
+    const query = journalQuerySchema.parse(req.query);
+    if (req.auth?.role === 'curator') {
+      const curatorGroup = await getCuratorGroup(req);
+      if (!curatorGroup || query.group !== curatorGroup) {
+        return res.status(403).json({ success: false, error: 'Куратор может вести журнал только своей группы' });
+      }
+    }
+    const data = await getJournalSummaries(query.group, query.date);
+    res.json({ success: true, data });
+  } catch (err: any) {
+    if (err.name === 'ZodError') {
+      return res.status(400).json({ success: false, error: 'Неверные параметры', details: err.errors });
+    }
+    res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+router.get('/journal/:scheduleId', requireAdminOrCurator, async (req: Request, res: Response) => {
+  try {
+    const { date } = journalDateQuerySchema.parse(req.query);
+    const lesson = await getJournalLesson(req.params.scheduleId, date);
+    if (!lesson) return res.status(404).json({ success: false, error: 'Занятие не найдено' });
+    if (req.auth?.role === 'curator') {
+      const curatorGroup = await getCuratorGroup(req);
+      if (!curatorGroup || lesson.group !== curatorGroup) {
+        return res.status(403).json({ success: false, error: 'Недостаточно прав' });
+      }
+    }
+    res.json({ success: true, data: lesson });
+  } catch (err: any) {
+    if (err.name === 'ZodError') {
+      return res.status(400).json({ success: false, error: 'Неверные параметры', details: err.errors });
+    }
+    res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+router.put('/journal/:scheduleId', requireAdminOrCurator, async (req: Request, res: Response) => {
+  try {
+    const data = journalSaveSchema.parse(req.body);
+    const lesson = await getJournalLesson(req.params.scheduleId, data.date);
+    if (!lesson) return res.status(404).json({ success: false, error: 'Занятие не найдено' });
+    if (req.auth?.role === 'curator') {
+      const curatorGroup = await getCuratorGroup(req);
+      if (!curatorGroup || lesson.group !== curatorGroup) {
+        return res.status(403).json({ success: false, error: 'Куратор может вести журнал только своей группы' });
+      }
+    }
+    const validIds = new Set(lesson.students.map((s) => s.studentId));
+    const entries = data.entries.filter((e) => validIds.has(e.studentId));
+    const saved = await saveJournalLesson(req.params.scheduleId, data.date, entries);
+    invalidateStudentsCache();
+    logAudit('update', 'journal', req.params.scheduleId, req.auth?.role, { group: lesson.group, date: data.date, students: entries.length });
+    void triggerWebhook('journal.updated', { scheduleId: req.params.scheduleId, date: data.date, group: lesson.group }).catch(() => {});
+    res.json({ success: true, data: saved });
+  } catch (err: any) {
+    if (err.name === 'ZodError') {
+      return res.status(400).json({ success: false, error: 'Ошибка валидации', details: err.errors });
+    }
+    res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
+  }
+});
+
 router.get('/marks/me', requireAuth, async (req: Request, res: Response) => {
   try {
     const student = await getStudentByUserId(req.auth!.userId);
@@ -827,6 +897,8 @@ router.post('/students/:id/marks', requireAdminOrCurator, async (req: Request, r
       return res.status(403).json({ success: false, error: 'Куратор может ставить оценки только студентам своей группы' });
     }
     const record = await addMark(student.id, data.subjectId, data.mark);
+    await recomputeStudentPerformance(student.id);
+    invalidateStudentsCache();
     logAudit('create', 'mark', record.id, req.auth?.role, { studentId: student.id, subjectId: data.subjectId, mark: data.mark });
     void triggerWebhook('mark.created', record).catch(() => {});
     res.status(201).json({ success: true, data: record });
@@ -850,6 +922,8 @@ router.put('/marks/:id', requireAdminOrCurator, async (req: Request, res: Respon
       return res.status(403).json({ success: false, error: 'Куратор может редактировать оценки только своей группы' });
     }
     const updated = await updateMark(req.params.id, data.mark);
+    await recomputeStudentPerformance(student.id);
+    invalidateStudentsCache();
     logAudit('update', 'mark', req.params.id, req.auth?.role, { studentId: student.id, mark: data.mark });
     void triggerWebhook('mark.updated', updated).catch(() => {});
     res.json({ success: true, data: updated });
@@ -871,6 +945,10 @@ router.delete('/marks/:id', requireAdminOrCurator, async (req: Request, res: Res
       return res.status(403).json({ success: false, error: 'Недостаточно прав' });
     }
     const deleted = await deleteMark(req.params.id);
+    if (student) {
+      await recomputeStudentPerformance(student.id);
+      invalidateStudentsCache();
+    }
     logAudit('delete', 'mark', req.params.id, req.auth?.role, { studentId: record.studentId });
     void triggerWebhook('mark.deleted', { id: req.params.id, deleted }).catch(() => {});
     res.json({ success: true, data: { deleted } });

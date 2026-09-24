@@ -53,7 +53,7 @@ export default function ImportExport({ onImportComplete }: Props) {
         'Email': s.email || '',
         'Телефон': s.phone || '',
         'Посещаемость (%)': s.attendance,
-        'Успеваемость (0-5)': s.performance,
+        'Успеваемость (0-10)': s.performance,
         'Задолженность': s.academicDebt ? 'Да' : 'Нет',
       }));
       const XLSX = await import('xlsx');
@@ -77,7 +77,7 @@ export default function ImportExport({ onImportComplete }: Props) {
     const rawCourse = parseInt(row['Курс'] || row['course'] || '1');
     const course = isNaN(rawCourse) ? 1 : rawCourse;
     const rawAttendance = parseInt(row['Посещаемость (%)'] || row['attendance'] || '100');
-    const rawPerformance = parseFloat(row['Успеваемость (0-5)'] || row['performance'] || '4.0');
+    const rawPerformance = parseFloat(row['Успеваемость (0-10)'] || row['Успеваемость (0-5)'] || row['performance'] || '4.0');
     const attendance = isNaN(rawAttendance) ? 100 : rawAttendance;
     const performance = isNaN(rawPerformance) ? 4.0 : rawPerformance;
     const debtVal = row['Задолженность'] || row['academicDebt'] || row['academic_debt'] || '';
@@ -94,7 +94,7 @@ export default function ImportExport({ onImportComplete }: Props) {
     if (attendance < 0 || attendance > 100) {
       return { student: null, error: `Некорректная посещаемость (${attendance})` };
     }
-    if (performance < 0 || performance > 5) {
+    if (performance < 0 || performance > 10) {
       return { student: null, error: `Некорректная успеваемость (${performance})` };
     }
 

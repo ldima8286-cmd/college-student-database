@@ -213,8 +213,17 @@ export function requireAdminOrCurator(req: Request, res: Response, next: NextFun
   });
 }
 
+const NO_CSRF_PATHS = new Set([
+  '/auth/login', '/auth/register', '/auth/refresh',
+  '/auth/logout', '/auth/forgot-password', '/auth/reset-password',
+]);
+
 export function requireCsrf(req: Request, res: Response, next: NextFunction): void {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+    next();
+    return;
+  }
+  if (NO_CSRF_PATHS.has(req.path)) {
     next();
     return;
   }

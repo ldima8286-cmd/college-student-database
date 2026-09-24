@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
-import { UserRound, Users, Phone, Mail, AlertTriangle, Activity, GraduationCap } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { UserRound, Users, Phone, Mail, AlertTriangle, Activity, GraduationCap, ClipboardList } from 'lucide-react';
 import { getStudents, getMe, getSchedule } from '../api';
 import { Student, ScheduleEntry } from '../types';
 import { toast } from 'react-hot-toast';
@@ -65,7 +66,12 @@ export default function CuratorPanel() {
             Полный доступ к данным студентов группы{group ? ` ${group}` : ''}
           </p>
         </div>
-        <button onClick={() => { if (page !== 1) setPage(1); else { loadStudents(); loadSchedule(); } }} className="btn btn-secondary text-sm">Обновить</button>
+        <div className="flex items-center gap-2">
+          <Link to="/curator/journal" className="btn btn-secondary text-sm flex items-center gap-1">
+            <ClipboardList className="w-4 h-4" /> Журнал
+          </Link>
+          <button onClick={() => { if (page !== 1) setPage(1); else { loadStudents(); loadSchedule(); } }} className="btn btn-secondary text-sm">Обновить</button>
+        </div>
       </div>
 
       {students.length === 0 && !loading && (

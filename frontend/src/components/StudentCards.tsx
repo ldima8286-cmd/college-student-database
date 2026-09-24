@@ -17,8 +17,8 @@ const attendanceColor = (att: number) => {
 };
 
 const performanceColor = (perf: number) => {
-  if (perf >= 4.5) return 'text-emerald-600 dark:text-emerald-400';
-  if (perf >= 3.5) return 'text-amber-600 dark:text-amber-400';
+  if (perf >= 9) return 'text-emerald-600 dark:text-emerald-400';
+  if (perf >= 7) return 'text-amber-600 dark:text-amber-400';
   return 'text-red-600 dark:text-red-400';
 };
 
@@ -71,8 +71,8 @@ export default memo(function StudentCards({ students, onEdit, onDelete, onToggle
               <div className="flex items-center gap-2">
                 <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                   <div className={`h-full rounded-full transition-all ${
-                    student.performance >= 4.5 ? 'bg-emerald-500' : student.performance >= 3.5 ? 'bg-amber-500' : 'bg-red-500'
-                  }`} style={{ width: `${(student.performance / 5) * 100}%` }}></div>
+                    student.performance >= 9 ? 'bg-emerald-500' : student.performance >= 7 ? 'bg-amber-500' : 'bg-red-500'
+                  }`} style={{ width: `${(student.performance / 10) * 100}%` }}></div>
                 </div>
                 <span className={`text-sm font-semibold ${performanceColor(student.performance)}`}>{student.performance.toFixed(1)}</span>
               </div>

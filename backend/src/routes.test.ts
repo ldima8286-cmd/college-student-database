@@ -37,6 +37,11 @@ vi.mock('./db.js', () => ({
   addMark: vi.fn().mockResolvedValue({ id: 'm1', studentId: 'st1', subjectId: 's1', subjectName: 'Математика', mark: 5, createdAt: new Date().toISOString() }),
   updateMark: vi.fn().mockResolvedValue({ id: 'm1', studentId: 'st1', subjectId: 's1', subjectName: 'Математика', mark: 4, createdAt: new Date().toISOString() }),
   deleteMark: vi.fn().mockResolvedValue(true),
+  recomputeStudentPerformance: vi.fn().mockResolvedValue(undefined),
+  recomputeStudentAttendance: vi.fn().mockResolvedValue(undefined),
+  getJournalSummaries: vi.fn().mockResolvedValue([]),
+  getJournalLesson: vi.fn().mockResolvedValue(null),
+  saveJournalLesson: vi.fn().mockResolvedValue(null),
   db: { select: vi.fn().mockReturnThis(), from: vi.fn().mockReturnThis(), insert: vi.fn().mockReturnThis(), values: vi.fn().mockResolvedValue([]) },
 }));
 

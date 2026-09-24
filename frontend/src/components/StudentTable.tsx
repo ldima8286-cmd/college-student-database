@@ -25,8 +25,8 @@ const attendanceColor = (att: number) => {
 };
 
 const performanceColor = (perf: number) => {
-  if (perf >= 4.5) return 'text-emerald-600 dark:text-emerald-400';
-  if (perf >= 3.5) return 'text-amber-600 dark:text-amber-400';
+  if (perf >= 9) return 'text-emerald-600 dark:text-emerald-400';
+  if (perf >= 7) return 'text-amber-600 dark:text-amber-400';
   return 'text-red-600 dark:text-red-400';
 };
 

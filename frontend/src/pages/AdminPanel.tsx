@@ -5,7 +5,7 @@ import {
   LogOut, Home, Users, AlertTriangle, BarChart3,
   TrendingUp, BookOpen, LayoutGrid, Table,
   Plus, Pencil, Trash2, Search, X,
-  Shield, Activity, Clock, FileText, User, CheckCircle2,
+  Shield, Activity, Clock, FileText, User, CheckCircle2, ClipboardList,
 } from 'lucide-react';
 import { Student, SortField, SortOrder, ViewMode } from '../types';
 import { getStudents, deleteStudent, toggleDebt, deleteAllStudents, getStats, logout, getAnalytics, batchDeleteStudents, batchExportStudents, batchUpdateStudents, approveStudent } from '../api';
@@ -226,6 +226,9 @@ export default function AdminPanel() {
               </Link>
               <Link to="/admin/schedule" className="btn btn-ghost text-sm flex items-center gap-1">
                 <Clock className="w-4 h-4" /> <span className="hidden sm:inline">Расписание</span>
+              </Link>
+              <Link to="/admin/journal" className="btn btn-ghost text-sm flex items-center gap-1">
+                <ClipboardList className="w-4 h-4" /> <span className="hidden sm:inline">Журнал</span>
               </Link>
               <Link to="/admin/subjects" className="btn btn-ghost text-sm flex items-center gap-1">
                 <BookOpen className="w-4 h-4" /> <span className="hidden sm:inline">Предметы</span>

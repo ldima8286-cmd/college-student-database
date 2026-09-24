@@ -45,7 +45,7 @@ export default function StudentForm({ editingStudent, onSuccess, onCancel }: Pro
     if (!form.group.trim()) errs.group = 'Введите группу';
     if (!form.specialty.trim()) errs.specialty = 'Введите специальность';
     if (form.attendance < 0 || form.attendance > 100) errs.attendance = '0-100';
-    if (form.performance < 0 || form.performance > 5) errs.performance = '0-5';
+    if (form.performance < 0 || form.performance > 10) errs.performance = '0-10';
     if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = 'Некорректный email';
     if (form.phone && !isValidPhone(form.phone)) errs.phone = 'Телефон: только цифры, максимум 15';
     setErrors(errs);
@@ -149,15 +149,15 @@ export default function StudentForm({ editingStudent, onSuccess, onCancel }: Pro
           <label className="label flex items-center gap-1.5">
             <GraduationCap className="w-3.5 h-3.5" /> Успеваемость: {form.performance.toFixed(1)}
           </label>
-          <input type="range" min="0" max="5" step="0.1" value={form.performance}
+          <input type="range" min="0" max="10" step="0.1" value={form.performance}
             onChange={(e) => setForm({ ...form, performance: Number(e.target.value) })}
             className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-primary-600" />
           <div className="flex justify-between text-xs text-gray-500 mt-1">
             <span>0</span>
-            <span className={`font-medium ${form.performance >= 4.5 ? 'text-emerald-600' : form.performance >= 3.5 ? 'text-amber-600' : 'text-red-600'}`}>
+            <span className={`font-medium ${form.performance >= 9 ? 'text-emerald-600' : form.performance >= 7 ? 'text-amber-600' : 'text-red-600'}`}>
               {form.performance.toFixed(1)}
             </span>
-            <span>5.0</span>
+            <span>10.0</span>
           </div>
         </div>
 

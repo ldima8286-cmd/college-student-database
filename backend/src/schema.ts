@@ -33,7 +33,7 @@ export const students = pgTable('students', {
 }, (t) => [
   check('students_course_check', sql`${t.course} >= 1 AND ${t.course} <= 6`),
   check('students_attendance_check', sql`${t.attendance} >= 0 AND ${t.attendance} <= 100`),
-  check('students_performance_check', sql`${t.performance} >= 0 AND ${t.performance} <= 5`),
+  check('students_performance_check', sql`${t.performance} >= 0 AND ${t.performance} <= 10`),
   index('idx_students_status').on(t.status),
   index('idx_students_course').on(t.course),
   index('idx_students_group').on(t.group),
@@ -82,11 +82,27 @@ export const marks = pgTable('marks', {
   studentId: uuid('student_id').notNull().references(() => students.id, { onDelete: 'cascade' }),
   subjectId: uuid('subject_id').notNull().references(() => subjects.id, { onDelete: 'cascade' }),
   mark: integer('mark').notNull(),
+  scheduleId: uuid('schedule_id').references(() => schedule.id, { onDelete: 'set null' }),
+  date: text('date'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
-  check('mark_check', sql`${t.mark} >= 2 AND ${t.mark} <= 5`),
+  check('mark_check', sql`${t.mark} >= 1 AND ${t.mark} <= 10`),
   index('idx_marks_student').on(t.studentId),
   index('idx_marks_subject').on(t.subjectId),
+  index('idx_marks_schedule_date').on(t.scheduleId, t.date),
+]);
+
+export const attendance = pgTable('attendance', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  scheduleId: uuid('schedule_id').notNull().references(() => schedule.id, { onDelete: 'cascade' }),
+  date: text('date').notNull(),
+  studentId: uuid('student_id').notNull().references(() => students.id, { onDelete: 'cascade' }),
+  status: text('status').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  check('attendance_status_check', sql`${t.status} IN ('present', 'late', 'absent')`),
+  index('idx_attendance_schedule_date').on(t.scheduleId, t.date),
+  index('idx_attendance_student').on(t.studentId),
 ]);
 
 export type Student = InferSelectModel<typeof students>;

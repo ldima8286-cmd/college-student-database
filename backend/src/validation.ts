@@ -15,7 +15,7 @@ export const studentSchema = z.object({
   group: z.string().min(1, 'Укажите группу').max(50),
   specialty: z.string().min(1, 'Укажите специальность').max(200),
   attendance: z.number().int().min(0).max(100),
-  performance: z.number().min(0).max(5),
+  performance: z.number().min(0).max(10),
   academicDebt: z.boolean(),
   email: z.string().email('Некорректный email').max(200).nullable().optional(),
   phone: phoneField,
@@ -95,7 +95,7 @@ export const batchUpdateSchema = z.object({
     group: z.string().min(1).max(50).optional(),
     specialty: z.string().min(1).max(200).optional(),
     attendance: z.number().int().min(0).max(100).optional(),
-    performance: z.number().min(0).max(5).optional(),
+    performance: z.number().min(0).max(10).optional(),
     academicDebt: z.boolean().optional(),
     email: z.string().email('Некорректный email').max(200).nullable().optional(),
     phone: phoneField,
@@ -131,6 +131,26 @@ export const markSchema = z.object({
 
 export const markUpdateSchema = z.object({
   mark: z.number().int('Оценка — целое число').min(1, 'Оценка от 1').max(10, 'Оценка до 10'),
+});
+
+export const journalQuerySchema = z.object({
+  group: z.string().min(1, 'Укажите группу').max(50),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Дата в формате ГГГГ-ММ-ДД'),
+});
+
+export const journalDateQuerySchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Дата в формате ГГГГ-ММ-ДД'),
+});
+
+export const journalEntrySchema = z.object({
+  studentId: z.string().min(1),
+  mark: z.number().int('Оценка — целое число').min(1, 'Оценка от 1').max(10, 'Оценка до 10').nullable().optional(),
+  status: z.enum(['present', 'late', 'absent']).nullable().optional(),
+});
+
+export const journalSaveSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Дата в формате ГГГГ-ММ-ДД'),
+  entries: z.array(journalEntrySchema).min(1, 'Журнал пуст').max(1000),
 });
 
 export const userAdminUpdateSchema = z.object({

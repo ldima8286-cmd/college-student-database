@@ -72,6 +72,44 @@ export interface MarkRecord {
   subjectName?: string;
   mark: number;
   createdAt: string;
+  scheduleId?: string | null;
+  date?: string | null;
+}
+
+export type AttendanceStatus = 'present' | 'late' | 'absent';
+
+export interface JournalStudentRow {
+  studentId: string;
+  fullName: string;
+  course: number;
+  mark: number | null;
+  markId: string | null;
+  status: AttendanceStatus | null;
+}
+
+export interface JournalLesson {
+  scheduleId: string;
+  group: string;
+  dayOfWeek: number;
+  lessonNumber: number;
+  subject: string;
+  teacher: string | null;
+  room: string | null;
+  date: string;
+  students: JournalStudentRow[];
+}
+
+export interface JournalSummaryLesson {
+  scheduleId: string;
+  lessonNumber: number;
+  subject: string;
+  teacher: string | null;
+  room: string | null;
+  totalStudents: number;
+  marked: number;
+  present: number;
+  late: number;
+  absent: number;
 }
 
 export interface AdminUser {

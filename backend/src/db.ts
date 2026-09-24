@@ -57,6 +57,44 @@ export interface MarkRecord {
   subjectName?: string;
   mark: number;
   createdAt: string;
+  scheduleId?: string | null;
+  date?: string | null;
+}
+
+export type AttendanceStatus = 'present' | 'late' | 'absent';
+
+export interface JournalStudentRow {
+  studentId: string;
+  fullName: string;
+  course: number;
+  mark: number | null;
+  markId: string | null;
+  status: AttendanceStatus | null;
+}
+
+export interface JournalLesson {
+  scheduleId: string;
+  group: string;
+  dayOfWeek: number;
+  lessonNumber: number;
+  subject: string;
+  teacher: string | null;
+  room: string | null;
+  date: string;
+  students: JournalStudentRow[];
+}
+
+export interface JournalSummaryLesson {
+  scheduleId: string;
+  lessonNumber: number;
+  subject: string;
+  teacher: string | null;
+  room: string | null;
+  totalStudents: number;
+  marked: number;
+  present: number;
+  late: number;
+  absent: number;
 }
 
 type SortOrder = 'asc' | 'desc';
@@ -106,6 +144,11 @@ interface DbModule {
   addMark(studentId: string, subjectId: string, mark: number): Promise<MarkRecord>;
   updateMark(id: string, mark: number): Promise<MarkRecord | null>;
   deleteMark(id: string): Promise<boolean>;
+  recomputeStudentPerformance(studentId: string): Promise<void>;
+  recomputeStudentAttendance(studentId: string): Promise<void>;
+  getJournalSummaries(group: string, date: string): Promise<JournalSummaryLesson[]>;
+  getJournalLesson(scheduleId: string, date: string): Promise<JournalLesson | null>;
+  saveJournalLesson(scheduleId: string, date: string, entries: { studentId: string; mark?: number | null; status?: AttendanceStatus | null }[]): Promise<JournalLesson | null>;
   rawDb: any;
 }
 
@@ -245,6 +288,21 @@ export async function updateMark(...args: Parameters<DbModule['updateMark']>) {
 }
 export async function deleteMark(...args: Parameters<DbModule['deleteMark']>) {
   return (await getDbModule()).deleteMark(...args);
+}
+export async function recomputeStudentPerformance(...args: Parameters<DbModule['recomputeStudentPerformance']>) {
+  return (await getDbModule()).recomputeStudentPerformance(...args);
+}
+export async function recomputeStudentAttendance(...args: Parameters<DbModule['recomputeStudentAttendance']>) {
+  return (await getDbModule()).recomputeStudentAttendance(...args);
+}
+export async function getJournalSummaries(...args: Parameters<DbModule['getJournalSummaries']>) {
+  return (await getDbModule()).getJournalSummaries(...args);
+}
+export async function getJournalLesson(...args: Parameters<DbModule['getJournalLesson']>) {
+  return (await getDbModule()).getJournalLesson(...args);
+}
+export async function saveJournalLesson(...args: Parameters<DbModule['saveJournalLesson']>) {
+  return (await getDbModule()).saveJournalLesson(...args);
 }
 
 export let db: any = null;

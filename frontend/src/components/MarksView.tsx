@@ -59,7 +59,7 @@ export default function MarksView({ marks }: Props) {
                       <span className={`inline-flex w-7 h-7 items-center justify-center rounded-md text-sm font-bold ${gradeColor(m.mark)}`}>
                         {m.mark}
                       </span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400">{fmtDate(m.createdAt)}</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">{fmtDate(m.date ?? m.createdAt)}</span>
                     </span>
                   ))}
                 </div>

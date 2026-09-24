@@ -32,7 +32,7 @@ export const students = sqliteTable('students', {
 }, (t) => [
   check('course_check', sql`${t.course} >= 1 AND ${t.course} <= 6`),
   check('attendance_check', sql`${t.attendance} >= 0 AND ${t.attendance} <= 100`),
-  check('performance_check', sql`${t.performance} >= 0 AND ${t.performance} <= 5`),
+  check('performance_check', sql`${t.performance} >= 0 AND ${t.performance} <= 10`),
   index('idx_students_status').on(t.status),
   index('idx_students_course').on(t.course),
   index('idx_students_group').on(t.group),
@@ -81,9 +81,25 @@ export const marks = sqliteTable('marks', {
   studentId: text('studentId').notNull().references(() => students.id, { onDelete: 'cascade' }),
   subjectId: text('subjectId').notNull().references(() => subjects.id, { onDelete: 'cascade' }),
   mark: integer('mark').notNull(),
+  scheduleId: text('scheduleId').references(() => schedule.id, { onDelete: 'set null' }),
+  date: text('date'),
   createdAt: text('createdAt').notNull(),
 }, (t) => [
-  check('mark_check', sql`${t.mark} >= 2 AND ${t.mark} <= 5`),
+  check('mark_check', sql`${t.mark} >= 1 AND ${t.mark} <= 10`),
   index('idx_marks_student').on(t.studentId),
   index('idx_marks_subject').on(t.subjectId),
+  index('idx_marks_schedule_date').on(t.scheduleId, t.date),
+]);
+
+export const attendance = sqliteTable('attendance', {
+  id: text('id').primaryKey(),
+  scheduleId: text('scheduleId').notNull().references(() => schedule.id, { onDelete: 'cascade' }),
+  date: text('date').notNull(),
+  studentId: text('studentId').notNull().references(() => students.id, { onDelete: 'cascade' }),
+  status: text('status').notNull(),
+  createdAt: text('createdAt').notNull(),
+}, (t) => [
+  check('attendance_status_check', sql`${t.status} IN ('present', 'late', 'absent')`),
+  index('idx_attendance_schedule_date').on(t.scheduleId, t.date),
+  index('idx_attendance_student').on(t.studentId),
 ]);

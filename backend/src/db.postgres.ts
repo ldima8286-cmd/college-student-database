@@ -3,7 +3,7 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import { eq, sql, like, or, and, count, avg, desc, asc, inArray, getTableColumns } from 'drizzle-orm';
 import { students, auditLog, users, subjects, schedule, marks } from './schema.js';
 import { env } from './env.js';
-import type { Student, UserRecord, Subject, ScheduleEntry, MarkRecord } from './db.js';
+import type { Student, UserRecord, Subject, ScheduleEntry, MarkRecord, JournalLesson, JournalSummaryLesson, AttendanceStatus, JournalStudentRow } from './db.js';
 
 const client = postgres(env.DATABASE_URL);
 const db = drizzle(client);
@@ -34,7 +34,7 @@ export async function ensureSchema(): Promise<void> {
       "group" TEXT NOT NULL,
       specialty TEXT NOT NULL,
       attendance INTEGER NOT NULL DEFAULT 100 CHECK(attendance >= 0 AND attendance <= 100),
-      performance REAL NOT NULL DEFAULT 4.0 CHECK(performance >= 0 AND performance <= 5),
+      performance REAL NOT NULL DEFAULT 4.0 CHECK(performance >= 0 AND performance <= 10),
       academic_debt BOOLEAN NOT NULL DEFAULT false,
       email TEXT,
       phone TEXT,
@@ -81,6 +81,8 @@ export async function ensureSchema(): Promise<void> {
       student_id uuid NOT NULL REFERENCES students(id) ON DELETE CASCADE,
       subject_id uuid NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
       mark INTEGER NOT NULL CHECK(mark >= 1 AND mark <= 10),
+      schedule_id uuid REFERENCES schedule(id) ON DELETE SET NULL,
+      date TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
     CREATE INDEX IF NOT EXISTS idx_schedule_group_day ON schedule("group", day_of_week, lesson_number);
@@ -88,6 +90,22 @@ export async function ensureSchema(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_marks_subject ON marks(subject_id);
     ALTER TABLE marks DROP CONSTRAINT IF EXISTS marks_mark_check;
     ALTER TABLE marks ADD CONSTRAINT marks_mark_check CHECK (mark >= 1 AND mark <= 10);
+    ALTER TABLE marks ADD COLUMN IF NOT EXISTS schedule_id uuid REFERENCES schedule(id) ON DELETE SET NULL;
+    ALTER TABLE marks ADD COLUMN IF NOT EXISTS date TEXT;
+    CREATE INDEX IF NOT EXISTS idx_marks_schedule_date ON marks(schedule_id, date);
+    CREATE TABLE IF NOT EXISTS attendance (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      schedule_id uuid NOT NULL REFERENCES schedule(id) ON DELETE CASCADE,
+      date TEXT NOT NULL,
+      student_id uuid NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+      status TEXT NOT NULL CHECK (status IN ('present', 'late', 'absent')),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      UNIQUE(schedule_id, date, student_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_attendance_schedule_date ON attendance(schedule_id, date);
+    CREATE INDEX IF NOT EXISTS idx_attendance_student ON attendance(student_id);
+    ALTER TABLE students DROP CONSTRAINT IF EXISTS students_performance_check;
+    ALTER TABLE students ADD CONSTRAINT students_performance_check CHECK (performance >= 0 AND performance <= 10);
     CREATE TABLE IF NOT EXISTS refresh_sessions (
       jti TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
@@ -438,12 +456,14 @@ export async function getMarksByStudent(studentId: string): Promise<MarkRecord[]
   const rows = await db.select({
     id: marks.id, studentId: marks.studentId, subjectId: marks.subjectId,
     subjectName: subjects.name, mark: marks.mark, createdAt: marks.createdAt,
+    scheduleId: marks.scheduleId, date: marks.date,
   }).from(marks).innerJoin(subjects, eq(marks.subjectId, subjects.id))
     .where(eq(marks.studentId, studentId))
     .orderBy(asc(subjects.name), asc(marks.createdAt));
   return rows.map((r) => ({
     id: r.id, studentId: r.studentId, subjectId: r.subjectId, subjectName: r.subjectName,
     mark: r.mark, createdAt: (r as any).createdAt?.toISOString?.() ?? new Date().toISOString(),
+    scheduleId: r.scheduleId ?? null, date: r.date ?? null,
   }));
 }
 
@@ -451,10 +471,11 @@ export async function getMarkById(id: string): Promise<MarkRecord | undefined> {
   const rows = await db.select({
     id: marks.id, studentId: marks.studentId, subjectId: marks.subjectId,
     subjectName: subjects.name, mark: marks.mark, createdAt: marks.createdAt,
+    scheduleId: marks.scheduleId, date: marks.date,
   }).from(marks).innerJoin(subjects, eq(marks.subjectId, subjects.id)).where(eq(marks.id, id));
   if (rows.length === 0) return undefined;
   const r = rows[0];
-  return { id: r.id, studentId: r.studentId, subjectId: r.subjectId, subjectName: r.subjectName, mark: r.mark, createdAt: (r as any).createdAt?.toISOString?.() ?? new Date().toISOString() };
+  return { id: r.id, studentId: r.studentId, subjectId: r.subjectId, subjectName: r.subjectName, mark: r.mark, createdAt: (r as any).createdAt?.toISOString?.() ?? new Date().toISOString(), scheduleId: r.scheduleId ?? null, date: r.date ?? null };
 }
 
 export async function addMark(studentId: string, subjectId: string, mark: number): Promise<MarkRecord> {
@@ -473,6 +494,127 @@ export async function updateMark(id: string, mark: number): Promise<MarkRecord |
 export async function deleteMark(id: string): Promise<boolean> {
   const rows = await db.delete(marks).where(eq(marks.id, id)).returning();
   return rows.length > 0;
+}
+
+export async function recomputeStudentPerformance(studentId: string): Promise<void> {
+  const rows = await client.unsafe<{ avg: string | null }[]>(`SELECT AVG(mark) as avg FROM marks WHERE student_id = $1`, [studentId]);
+  const avg = rows[0]?.avg;
+  if (avg === null || avg === undefined) return;
+  const value = Math.max(0, Math.min(10, Math.round(Number(avg) * 100) / 100));
+  await client.unsafe(`UPDATE students SET performance = $1, updated_at = now() WHERE id = $2`, [value, studentId]);
+}
+
+export async function recomputeStudentAttendance(studentId: string): Promise<void> {
+  const rows = await client.unsafe<{ total: string; present: string }[]>(
+    `SELECT COUNT(*) as total, COALESCE(SUM(CASE WHEN status IN ('present', 'late') THEN 1 ELSE 0 END), 0) as present FROM attendance WHERE student_id = $1`,
+    [studentId]
+  );
+  const total = Number(rows[0]?.total ?? 0);
+  if (total === 0) return;
+  const present = Number(rows[0]?.present ?? 0);
+  const value = Math.round((present / total) * 100);
+  await client.unsafe(`UPDATE students SET attendance = $1, updated_at = now() WHERE id = $2`, [value, studentId]);
+}
+
+export async function getJournalSummaries(group: string, date: string): Promise<JournalSummaryLesson[]> {
+  const studentRows = await client.unsafe<{ id: string }[]>(`SELECT id FROM students WHERE "group" = $1 AND status = 'approved'`, [group]);
+  if (studentRows.length === 0) return [];
+  const ids = studentRows.map((s) => s.id);
+  const lessons = await client.unsafe<{ id: string; lesson_number: number; subject: string; teacher: string | null; room: string | null }[]>(
+    `SELECT id, lesson_number, subject, teacher, room FROM schedule WHERE "group" = $1 ORDER BY lesson_number`, [group]
+  );
+  const result: JournalSummaryLesson[] = [];
+  for (const l of lessons) {
+    const [markedRow] = await client.unsafe<{ c: string }[]>(
+      `SELECT COUNT(*) as c FROM marks WHERE schedule_id = $1 AND date = $2 AND student_id = ANY($3)`, [l.id, date, ids]
+    );
+    const attRows = await client.unsafe<{ status: string; c: string }[]>(
+      `SELECT status, COUNT(*) as c FROM attendance WHERE schedule_id = $1 AND date = $2 AND student_id = ANY($3) GROUP BY status`, [l.id, date, ids]
+    );
+    result.push({
+      scheduleId: l.id, lessonNumber: l.lesson_number, subject: l.subject, teacher: l.teacher, room: l.room,
+      totalStudents: studentRows.length,
+      marked: Number(markedRow?.c ?? 0),
+      present: Number(attRows.find((r) => r.status === 'present')?.c ?? 0),
+      late: Number(attRows.find((r) => r.status === 'late')?.c ?? 0),
+      absent: Number(attRows.find((r) => r.status === 'absent')?.c ?? 0),
+    });
+  }
+  return result;
+}
+
+export async function getJournalLesson(scheduleId: string, date: string): Promise<JournalLesson | null> {
+  const entries = await client.unsafe<{ id: string; group: string; day_of_week: number; lesson_number: number; subject: string; teacher: string | null; room: string | null }[]>(
+    `SELECT id, "group", day_of_week, lesson_number, subject, teacher, room FROM schedule WHERE id = $1`, [scheduleId]
+  );
+  if (entries.length === 0) return null;
+  const entry = entries[0];
+  const students = await client.unsafe<{ id: string; full_name: string; course: number }[]>(
+    `SELECT id, full_name, course FROM students WHERE "group" = $1 AND status = 'approved' ORDER BY full_name`, [entry.group]
+  );
+  const markRows = await client.unsafe<{ id: string; student_id: string; mark: number }[]>(
+    `SELECT id, student_id, mark FROM marks WHERE schedule_id = $1 AND date = $2`, [scheduleId, date]
+  );
+  const attRows = await client.unsafe<{ student_id: string; status: string }[]>(
+    `SELECT student_id, status FROM attendance WHERE schedule_id = $1 AND date = $2`, [scheduleId, date]
+  );
+  const markById = new Map(markRows.map((m) => [m.student_id, { id: m.id, mark: m.mark }]));
+  const statusById = new Map(attRows.map((a) => [a.student_id, a.status]));
+  return {
+    scheduleId, group: entry.group, dayOfWeek: entry.day_of_week, lessonNumber: entry.lesson_number,
+    subject: entry.subject, teacher: entry.teacher, room: entry.room, date,
+    students: students.map((s) => {
+      const mark = markById.get(s.id);
+      return {
+        studentId: s.id, fullName: s.full_name, course: s.course,
+        mark: mark?.mark ?? null, markId: mark?.id ?? null,
+        status: (statusById.get(s.id) as JournalStudentRow['status']) ?? null,
+      };
+    }),
+  };
+}
+
+export async function saveJournalLesson(
+  scheduleId: string, date: string,
+  entries: { studentId: string; mark?: number | null; status?: AttendanceStatus | null }[]
+): Promise<JournalLesson | null> {
+  const scheduleRows = await client.unsafe<{ subject: string }[]>(`SELECT subject FROM schedule WHERE id = $1`, [scheduleId]);
+  if (scheduleRows.length === 0) return null;
+  const subjectName = scheduleRows[0].subject;
+  let subjectRows = await client.unsafe<{ id: string }[]>(`SELECT id FROM subjects WHERE lower(name) = lower($1)`, [subjectName]);
+  if (subjectRows.length === 0) {
+    subjectRows = await client.unsafe<{ id: string }[]>(`INSERT INTO subjects (name) VALUES ($1) RETURNING id`, [subjectName]);
+  }
+  const subjectId = subjectRows[0].id;
+  await client.begin(async (tx) => {
+    for (const e of entries) {
+      if (typeof e.mark === 'number') {
+        const existing = await tx.unsafe<{ id: string }[]>(`SELECT id FROM marks WHERE schedule_id = $1 AND date = $2 AND student_id = $3`, [scheduleId, date, e.studentId]);
+        if (existing.length > 0) {
+          await tx.unsafe(`UPDATE marks SET mark = $1, subject_id = $2 WHERE id = $3`, [e.mark, subjectId, existing[0].id]);
+        } else {
+          await tx.unsafe(`INSERT INTO marks (student_id, subject_id, mark, schedule_id, date) VALUES ($1, $2, $3, $4, $5)`, [e.studentId, subjectId, e.mark, scheduleId, date]);
+        }
+      } else {
+        await tx.unsafe(`DELETE FROM marks WHERE schedule_id = $1 AND date = $2 AND student_id = $3`, [scheduleId, date, e.studentId]);
+      }
+      if (e.status) {
+        const existing = await tx.unsafe<{ id: string }[]>(`SELECT id FROM attendance WHERE schedule_id = $1 AND date = $2 AND student_id = $3`, [scheduleId, date, e.studentId]);
+        if (existing.length > 0) {
+          await tx.unsafe(`UPDATE attendance SET status = $1 WHERE id = $2`, [e.status, existing[0].id]);
+        } else {
+          await tx.unsafe(`INSERT INTO attendance (schedule_id, date, student_id, status) VALUES ($1, $2, $3, $4)`, [scheduleId, date, e.studentId, e.status]);
+        }
+      } else {
+        await tx.unsafe(`DELETE FROM attendance WHERE schedule_id = $1 AND date = $2 AND student_id = $3`, [scheduleId, date, e.studentId]);
+      }
+    }
+  });
+  for (const e of entries) {
+    await recomputeStudentPerformance(e.studentId);
+    await recomputeStudentAttendance(e.studentId);
+  }
+  return getJournalLesson(scheduleId, date);
 }
 
 export async function saveRefreshSession(jti: string, userId: string, expiresAt: number): Promise<void> {

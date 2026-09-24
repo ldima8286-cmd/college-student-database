@@ -1,5 +1,5 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
-import { Student, StudentStatus, PaginatedResponse, StudentStats, ApiResponse, Role, Subject, ScheduleEntry, MarkRecord, AdminUser } from './types';
+import { Student, StudentStatus, PaginatedResponse, StudentStats, ApiResponse, Role, Subject, ScheduleEntry, MarkRecord, AdminUser, AttendanceStatus, JournalLesson, JournalSummaryLesson } from './types';
 
 export type { Role };
 
@@ -300,6 +300,28 @@ export async function deleteScheduleEntry(id: string): Promise<void> {
 export async function deleteScheduleByGroup(group: string): Promise<number> {
   const { data } = await api.delete<ApiResponse<{ deleted: number }>>('/schedule', { params: { group } });
   return data.data?.deleted ?? 0;
+}
+
+export async function getJournalSummary(group: string, date: string): Promise<JournalSummaryLesson[]> {
+  const { data } = await api.get<ApiResponse<JournalSummaryLesson[]>>('/journal/summary', { params: { group, date } });
+  if (!data.success || !data.data) throw new Error(data.error || 'Ошибка загрузки журнала');
+  return data.data;
+}
+
+export async function getJournalLesson(scheduleId: string, date: string): Promise<JournalLesson> {
+  const { data } = await api.get<ApiResponse<JournalLesson>>(`/journal/${scheduleId}`, { params: { date } });
+  if (!data.success || !data.data) throw new Error(data.error || 'Ошибка загрузки занятия');
+  return data.data;
+}
+
+export async function saveJournalLesson(
+  scheduleId: string,
+  date: string,
+  entries: { studentId: string; mark: number | null; status: AttendanceStatus | null }[]
+): Promise<JournalLesson> {
+  const { data } = await api.put<ApiResponse<JournalLesson>>(`/journal/${scheduleId}`, { date, entries });
+  if (!data.success || !data.data) throw new Error(data.error || 'Ошибка сохранения журнала');
+  return data.data;
 }
 
 export async function getMyMarks(): Promise<MarkRecord[]> {
