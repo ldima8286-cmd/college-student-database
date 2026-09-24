@@ -152,11 +152,15 @@ router.post('/auth/refresh', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/auth/logout', requireAuth, (req: Request, res: Response) => {
-  const refreshCookie = typeof req.cookies?.refresh_token === 'string' ? req.cookies.refresh_token : undefined;
-  if (refreshCookie) {
-    const valid = verifyRefreshToken(refreshCookie);
-    if (valid) revokeRefreshJti(valid.jti);
+router.post('/auth/logout', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const refreshCookie = typeof req.cookies?.refresh_token === 'string' ? req.cookies.refresh_token : undefined;
+    if (refreshCookie) {
+      const valid = await verifyRefreshToken(refreshCookie);
+      if (valid) await revokeRefreshJti(valid.jti);
+    }
+  } catch {
+    /* токен уже недействителен — выходим в любом случае */
   }
   clearAuthCookies(res);
   if (req.auth?.role === 'admin' || req.auth?.role === 'curator') {
@@ -255,7 +259,7 @@ router.put('/auth/me/password', requireAuth, async (req: Request, res: Response)
       return res.status(400).json({ success: false, error: 'Неверный текущий пароль' });
     }
     await updateUserPassword(req.auth!.userId, await hashPassword(data.newPassword));
-    revokeAllRefreshTokens(req.auth!.userId);
+    await revokeAllRefreshTokens(req.auth!.userId);
     clearAuthCookies(res);
     logAudit('change-password', 'user', user.id, user.role);
     res.json({ success: true });
@@ -344,8 +348,9 @@ router.put('/students/me', requireAuth, async (req: Request, res: Response) => {
         specialty: data.specialty,
         email: data.email ?? null,
         phone: data.phone ?? null,
+        status: existing.status === 'approved' ? 'pending' : existing.status,
       });
-      logAudit('update', 'student', existing.id, req.auth?.role, { fullName: existing.fullName, self: true });
+      logAudit('update', 'student', existing.id, req.auth?.role, { fullName: existing.fullName, self: true, status: student?.status });
       invalidateStudentsCache();
       void triggerWebhook('student.updated', student).catch(() => {});
       return res.json({ success: true, data: student });

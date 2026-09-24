@@ -66,6 +66,14 @@ sqliteDb.exec(`
   )
 `);
 
+sqliteDb.exec(`
+  CREATE TABLE IF NOT EXISTS refreshSessions (
+    jti TEXT PRIMARY KEY,
+    userId TEXT NOT NULL,
+    expiresAt INTEGER NOT NULL
+  )
+`);
+
 const userCols = sqliteDb.prepare(`PRAGMA table_info(users)`).all() as any[];
 if (!userCols.some((c: any) => c.name === 'group')) {
   sqliteDb.exec(`ALTER TABLE users ADD COLUMN "group" TEXT`);
@@ -133,6 +141,7 @@ export async function ensureSchema(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_students_user_id ON students(userId);
     CREATE INDEX IF NOT EXISTS idx_students_created_at ON students(createdAt);
     CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON auditLog(createdAt);
+    CREATE INDEX IF NOT EXISTS idx_refresh_sessions_user ON refreshSessions(userId);
     CREATE INDEX IF NOT EXISTS idx_schedule_group_day ON schedule("group", dayOfWeek, lessonNumber);
     CREATE INDEX IF NOT EXISTS idx_marks_student ON marks(studentId);
     CREATE INDEX IF NOT EXISTS idx_marks_subject ON marks(subjectId);
@@ -503,4 +512,21 @@ export async function updateMark(id: string, mark: number): Promise<MarkRecord |
 
 export async function deleteMark(id: string): Promise<boolean> {
   return sqliteDb.prepare('DELETE FROM marks WHERE id = ?').run(id).changes > 0;
+}
+
+export async function saveRefreshSession(jti: string, userId: string, expiresAt: number): Promise<void> {
+  sqliteDb.prepare('INSERT INTO refreshSessions (jti, userId, expiresAt) VALUES (?, ?, ?)').run(jti, userId, expiresAt);
+}
+
+export async function getRefreshSession(jti: string): Promise<{ jti: string; userId: string; expiresAt: number } | undefined> {
+  const row = sqliteDb.prepare('SELECT * FROM refreshSessions WHERE jti = ?').get(jti) as any;
+  return row ?? undefined;
+}
+
+export async function deleteRefreshSession(jti: string): Promise<boolean> {
+  return sqliteDb.prepare('DELETE FROM refreshSessions WHERE jti = ?').run(jti).changes > 0;
+}
+
+export async function deleteRefreshSessionsByUserId(userId: string): Promise<number> {
+  return sqliteDb.prepare('DELETE FROM refreshSessions WHERE userId = ?').run(userId).changes;
 }

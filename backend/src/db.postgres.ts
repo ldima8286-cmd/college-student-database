@@ -88,6 +88,12 @@ export async function ensureSchema(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_marks_subject ON marks(subject_id);
     ALTER TABLE marks DROP CONSTRAINT IF EXISTS marks_mark_check;
     ALTER TABLE marks ADD CONSTRAINT marks_mark_check CHECK (mark >= 1 AND mark <= 10);
+    CREATE TABLE IF NOT EXISTS refresh_sessions (
+      jti TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_refresh_sessions_user ON refresh_sessions(user_id);
   `);
 }
 
@@ -467,4 +473,30 @@ export async function updateMark(id: string, mark: number): Promise<MarkRecord |
 export async function deleteMark(id: string): Promise<boolean> {
   const rows = await db.delete(marks).where(eq(marks.id, id)).returning();
   return rows.length > 0;
+}
+
+export async function saveRefreshSession(jti: string, userId: string, expiresAt: number): Promise<void> {
+  await client.unsafe(
+    `INSERT INTO refresh_sessions (jti, user_id, expires_at) VALUES ($1, $2, to_timestamp($3 / 1000.0))`,
+    [jti, userId, expiresAt]
+  );
+}
+
+export async function getRefreshSession(jti: string): Promise<{ jti: string; userId: string; expiresAt: number } | undefined> {
+  const rows = await client.unsafe<{ jti: string; user_id: string; expires_at: string | Date }[]>(
+    `SELECT jti, user_id, expires_at FROM refresh_sessions WHERE jti = $1`, [jti]
+  );
+  if (rows.length === 0) return undefined;
+  const r = rows[0];
+  return { jti: r.jti, userId: r.user_id, expiresAt: new Date(r.expires_at).getTime() };
+}
+
+export async function deleteRefreshSession(jti: string): Promise<boolean> {
+  const rows = await client.unsafe<{ jti: string }[]>(`DELETE FROM refresh_sessions WHERE jti = $1 RETURNING jti`, [jti]);
+  return rows.length > 0;
+}
+
+export async function deleteRefreshSessionsByUserId(userId: string): Promise<number> {
+  const rows = await client.unsafe<{ user_id: string }[]>(`DELETE FROM refresh_sessions WHERE user_id = $1 RETURNING user_id`, [userId]);
+  return rows.length;
 }

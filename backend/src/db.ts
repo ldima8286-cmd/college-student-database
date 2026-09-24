@@ -81,6 +81,10 @@ interface DbModule {
   logAudit(action: string, entity: string, entityId?: string, userId?: string, details?: any): Promise<void>;
   getAuditLogs(page?: number, limit?: number, entity?: string, action?: string): Promise<{ data: any[]; total: number }>;
   pruneAuditLogs?(): Promise<number>;
+  saveRefreshSession(jti: string, userId: string, expiresAt: number): Promise<void>;
+  getRefreshSession(jti: string): Promise<{ jti: string; userId: string; expiresAt: number } | undefined>;
+  deleteRefreshSession(jti: string): Promise<boolean>;
+  deleteRefreshSessionsByUserId(userId: string): Promise<number>;
   findUserByEmail(email: string): Promise<UserRecord | undefined>;
   getUserById(id: string): Promise<UserRecord | undefined>;
   createUser(data: { email: string; passwordHash: string; fullName: string; role?: string; avatar?: string | null; phone?: string | null; group?: string | null }): Promise<UserRecord>;
@@ -190,6 +194,18 @@ export async function updateUserRoleAndGroup(...args: Parameters<DbModule['updat
 }
 export async function getGroups(...args: Parameters<DbModule['getGroups']>) {
   return (await getDbModule()).getGroups(...args);
+}
+export async function saveRefreshSession(...args: Parameters<DbModule['saveRefreshSession']>) {
+  return (await getDbModule()).saveRefreshSession(...args);
+}
+export async function getRefreshSession(...args: Parameters<DbModule['getRefreshSession']>) {
+  return (await getDbModule()).getRefreshSession(...args);
+}
+export async function deleteRefreshSession(...args: Parameters<DbModule['deleteRefreshSession']>) {
+  return (await getDbModule()).deleteRefreshSession(...args);
+}
+export async function deleteRefreshSessionsByUserId(...args: Parameters<DbModule['deleteRefreshSessionsByUserId']>) {
+  return (await getDbModule()).deleteRefreshSessionsByUserId(...args);
 }
 export async function listSubjects(...args: Parameters<DbModule['listSubjects']>) {
   return (await getDbModule()).listSubjects(...args);

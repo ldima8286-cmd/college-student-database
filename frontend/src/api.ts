@@ -224,7 +224,7 @@ export async function getMe(signal?: AbortSignal): Promise<any> {
   return data.data;
 }
 
-export async function updateProfile(data: { fullName: string; phone?: string; avatar?: string }): Promise<any> {
+export async function updateProfile(data: { fullName: string; phone?: string; avatar?: string | null }): Promise<any> {
   const { data: res } = await api.put<ApiResponse<any>>('/auth/me', data);
   if (!res.success) throw new Error(res.error || 'Ошибка обновления');
   return res.data;

@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { env } from './env.js';
-import { findUserByEmail, getUserById } from './db.js';
+import { findUserByEmail, getUserById, saveRefreshSession, getRefreshSession, deleteRefreshSession, deleteRefreshSessionsByUserId } from './db.js';
 
 export type Role = 'admin' | 'curator' | 'user';
 
@@ -57,8 +57,6 @@ function cookieSecure(): boolean {
   return env.NODE_ENV === 'production';
 }
 
-const activeRefreshes = new Map<string, { userId: string; expiresAt: number }>();
-
 export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, 10);
 }
@@ -72,29 +70,31 @@ export function signAccessToken(user: { id: string; email: string; role: Role })
   return jwt.sign(payload, env.JWT_SECRET, { expiresIn: ACCESS_TOKEN_TTL });
 }
 
-export function revokeRefreshJti(jti: string): void {
-  activeRefreshes.delete(jti);
+export async function revokeRefreshJti(jti: string): Promise<void> {
+  await deleteRefreshSession(jti);
 }
 
-export function revokeAllRefreshTokens(userId: string): void {
-  for (const [jti, entry] of activeRefreshes) {
-    if (entry.userId === userId) activeRefreshes.delete(jti);
-  }
+export async function revokeAllRefreshTokens(userId: string): Promise<void> {
+  await deleteRefreshSessionsByUserId(userId);
 }
 
-export function signRefreshToken(userId: string): string {
+export async function signRefreshToken(userId: string): Promise<string> {
   const jti = crypto.randomUUID();
-  activeRefreshes.set(jti, { userId, expiresAt: Date.now() + 7 * 24 * 3600 * 1000 });
+  await saveRefreshSession(jti, userId, Date.now() + 7 * 24 * 3600 * 1000);
   const payload: RefreshPayload = { userId, type: 'refresh', jti };
   return jwt.sign(payload, env.REFRESH_TOKEN_SECRET, { expiresIn: REFRESH_TOKEN_TTL });
 }
 
-export function verifyRefreshToken(token: string): { userId: string; jti: string } | null {
+export async function verifyRefreshToken(token: string): Promise<{ userId: string; jti: string } | null> {
   try {
     const decoded = jwt.verify(token, env.REFRESH_TOKEN_SECRET) as RefreshPayload;
     if (decoded.type !== 'refresh' || !decoded.userId || !decoded.jti) return null;
-    const entry = activeRefreshes.get(decoded.jti);
-    if (!entry || entry.userId !== decoded.userId || entry.expiresAt < Date.now()) return null;
+    const session = await getRefreshSession(decoded.jti);
+    if (!session || session.userId !== decoded.userId) return null;
+    if (session.expiresAt < Date.now()) {
+      await deleteRefreshSession(decoded.jti);
+      return null;
+    }
     return { userId: decoded.userId, jti: decoded.jti };
   } catch {
     return null;
@@ -108,7 +108,7 @@ export async function authenticate(email: string, password: string): Promise<Aut
   const role = normalizeRole(user.role);
   return {
     accessToken: signAccessToken({ id: user.id, email: user.email, role }),
-    refreshToken: signRefreshToken(user.id),
+    refreshToken: await signRefreshToken(user.id),
     role,
   };
 }
@@ -118,7 +118,7 @@ export async function issueTokens(userId: string): Promise<AuthSession> {
   const role = normalizeRole(user?.role);
   return {
     accessToken: signAccessToken({ id: userId, email: user?.email ?? '', role }),
-    refreshToken: signRefreshToken(userId),
+    refreshToken: await signRefreshToken(userId),
     role,
   };
 }
@@ -247,8 +247,8 @@ export function getAuthInfo(req: Request): { role: Role | null; authenticated: b
 }
 
 export async function refreshSession(refreshToken: string): Promise<AuthSession | null> {
-  const valid = verifyRefreshToken(refreshToken);
+  const valid = await verifyRefreshToken(refreshToken);
   if (!valid) return null;
-  revokeRefreshJti(valid.jti);
+  await revokeRefreshJti(valid.jti);
   return issueTokens(valid.userId);
 }

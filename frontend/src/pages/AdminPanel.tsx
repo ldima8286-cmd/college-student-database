@@ -170,6 +170,13 @@ export default function AdminPanel() {
   const handleBatchExport = async (ids: string[]) => {
     try {
       const data = await batchExportStudents(ids);
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `students_selected_${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
       toast.success(`Экспортировано ${data.length} записей`);
     } catch (err: any) {
       toast.error(err.message);

@@ -64,7 +64,7 @@ export default function Profile() {
     }
     setSaving(true);
     try {
-      await updateProfile({ fullName, phone, avatar: avatar || undefined });
+      await updateProfile({ fullName, phone, avatar: avatar || null });
       toast.success('Профиль обновлён');
     } catch (err: any) {
       toast.error(err.message);
