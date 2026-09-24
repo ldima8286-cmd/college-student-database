@@ -3,6 +3,7 @@ import { CalendarDays, Plus, Trash2, Save, X, Users } from 'lucide-react';
 import { getSchedule, createScheduleEntry, updateScheduleEntry, deleteScheduleEntry, deleteScheduleByGroup, getGroups, listSubjects } from '../../api';
 import { ScheduleEntry, Subject } from '../../types';
 import { toast } from 'react-hot-toast';
+import AdminNav from '../../components/AdminNav';
 
 const DAY_NAMES = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
 const LESSONS = Array.from({ length: 10 }, (_, i) => i + 1);
@@ -118,12 +119,21 @@ export default function ScheduleManager() {
   const isEditing = (day: number, lesson: number) =>
     editor?.group === group && editor.dayOfWeek === day && editor.lessonNumber === lesson;
 
+  const dayCount = (day: number) => entries.filter((e) => e.dayOfWeek === day).length;
+
   return (
-    <div>
-      <div className="card mb-6">
-        <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-3 flex items-center gap-2">
-          <CalendarDays className="w-4 h-4" /> Расписание занятий
-        </h3>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+      <AdminNav />
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="flex items-center gap-2 mb-6">
+          <CalendarDays className="w-5 h-5 text-primary-600" />
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Расписание</h2>
+        </div>
+
+        <div className="card mb-6">
+          <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-3 flex items-center gap-2">
+            <CalendarDays className="w-4 h-4" /> Расписание занятий
+          </h3>
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1">
             <label className="label flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> Группа</label>
@@ -154,7 +164,7 @@ export default function ScheduleManager() {
       {editor && (
         <div className="card mb-6 animate-slide-down">
           <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-3">
-            {DAY_NAMES[editor.dayOfWeek - 1]}, урок {editor.lessonNumber}
+            {DAY_NAMES[editor.dayOfWeek - 1]}, пара {editor.lessonNumber}
             {editor.entry ? ' — редактирование' : ' — новая запись'}
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -206,10 +216,23 @@ export default function ScheduleManager() {
             <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary-500 border-t-transparent"></div>
           </div>
         ) : (
-          <table className="w-full text-sm border-collapse">
+          <>
+            {entries.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-4">
+                {DAY_NAMES.map((d, i) => (
+                  <span key={d} className="px-3 py-1.5 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 font-medium">
+                    {d}: {dayCount(i + 1)}
+                  </span>
+                ))}
+                <span className="px-3 py-1.5 rounded-lg bg-primary-50 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-900 text-primary-700 dark:text-primary-300 font-semibold">
+                  Всего пар: {entries.length}
+                </span>
+              </div>
+            )}
+            <table className="w-full text-sm border-collapse">
             <thead>
               <tr>
-                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">Урок</th>
+                <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">Пара</th>
                 {DAY_NAMES.map((d) => (
                   <th key={d} className="px-2 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">{d}</th>
                 ))}
@@ -245,12 +268,14 @@ export default function ScheduleManager() {
                 </tr>
               ))}
             </tbody>
-          </table>
+            </table>
+          </>
         )}
       </div>
       <p className="text-xs text-gray-500 mt-3">
-        Нажмите на клетку, чтобы добавить или изменить занятие. Учебная неделя: Пн–Сб, до 10 уроков.
+        Нажмите на клетку, чтобы добавить или изменить занятие. Учебная неделя: Пн–Сб, до 10 пар.
       </p>
+      </main>
     </div>
   );
 }

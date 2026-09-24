@@ -1,11 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ClipboardList, CalendarDays, ArrowLeft, Save, CheckCheck, Loader2, UserCheck, UserX, Clock, Users } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ClipboardList, CalendarDays, ArrowLeft, ChevronLeft, ChevronRight, Save, CheckCheck, Loader2, UserCheck, UserX, Clock, Users } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { getMe, getGroups, getJournalSummary, getJournalLesson, saveJournalLesson, isCurator, isAdmin } from '../api';
 import { AttendanceStatus, JournalSummaryLesson, JournalLesson } from '../types';
+import AdminNav from '../components/AdminNav';
 
 const today = () => {
   const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
+const shiftDateStr = (date: string, offsetDays: number) => {
+  const d = new Date(`${date}T00:00:00`);
+  d.setDate(d.getDate() + offsetDays);
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
@@ -122,30 +131,46 @@ export default function Journal() {
   };
 
   return (
-    <div className="max-w-6xl">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-            <ClipboardList className="w-5 h-5 text-primary-600" />
-            Журнал посещаемости и оценок
-          </h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Выберите группу и дату — в журнал попадут занятия из расписания на этот день.
-          </p>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+      {isAdmin() && <AdminNav />}
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {isCurator() && (
+          <Link to="/curator" className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 mb-4">
+            <ArrowLeft className="w-3.5 h-3.5" /> К панели куратора
+          </Link>
+        )}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <ClipboardList className="w-5 h-5 text-primary-600" />
+              Журнал посещаемости и оценок
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Выберите группу и дату — в журнал попадут занятия из расписания на этот день.
+            </p>
+          </div>
+          <button onClick={() => { setLesson(null); loadSummaries(); }} className="btn btn-secondary text-sm">Обновить</button>
         </div>
-        <button onClick={() => { setLesson(null); loadSummaries(); }} className="btn btn-secondary text-sm">Обновить</button>
-      </div>
 
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
-        <select value={group} onChange={(e) => { setGroup(e.target.value); setLesson(null); }} className="input sm:w-64" disabled={groups.length <= 1}>
-          {groups.length === 0 && <option value="">Нет групп</option>}
-          {groups.map((g) => <option key={g} value={g}>{g}</option>)}
-        </select>
-        <label className="flex items-center gap-2 input sm:w-auto">
-          <CalendarDays className="w-4 h-4 text-gray-400" />
-          <input type="date" value={date} onChange={(e) => { setDate(e.target.value); setLesson(null); }} className="bg-transparent outline-none" />
-        </label>
-      </div>
+        <div className="flex flex-col sm:flex-row gap-3 mb-6">
+          <select value={group} onChange={(e) => { setGroup(e.target.value); setLesson(null); }} className="input sm:w-64" disabled={groups.length <= 1}>
+            {groups.length === 0 && <option value="">Нет групп</option>}
+            {groups.map((g) => <option key={g} value={g}>{g}</option>)}
+          </select>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button onClick={() => { setDate(shiftDateStr(date, -1)); setLesson(null); }} className="btn btn-secondary px-2.5" title="Предыдущий день">
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <label className="flex items-center gap-2 input sm:w-auto">
+              <CalendarDays className="w-4 h-4 text-gray-400" />
+              <input type="date" value={date} onChange={(e) => { setDate(e.target.value); setLesson(null); }} className="bg-transparent outline-none" />
+            </label>
+            <button onClick={() => { setDate(shiftDateStr(date, 1)); setLesson(null); }} className="btn btn-secondary px-2.5" title="Следующий день">
+              <ChevronRight className="w-4 h-4" />
+            </button>
+            <button onClick={() => { setDate(today()); setLesson(null); }} className="btn btn-secondary text-sm">Сегодня</button>
+          </div>
+        </div>
 
       {!group && !loading && (
         <div className="card text-center py-10 text-gray-500">
@@ -179,7 +204,7 @@ export default function Journal() {
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                            Урок {l.lessonNumber} · {l.subject}
+                            Пара {l.lessonNumber} · {l.subject}
                           </p>
                           <p className="text-xs text-gray-500 mt-1">
                             {l.teacher || 'Преподаватель не указан'}
@@ -230,7 +255,7 @@ export default function Journal() {
                     <ArrowLeft className="w-3.5 h-3.5" /> К списку занятий
                   </button>
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    Урок {lesson.lessonNumber} · {lesson.subject}
+                    Пара {lesson.lessonNumber} · {lesson.subject}
                   </h3>
                   <p className="text-sm text-gray-500">
                     Группа {lesson.group} · {lesson.date}
@@ -317,6 +342,7 @@ export default function Journal() {
           )}
         </>
       )}
+      </main>
     </div>
   );
 }

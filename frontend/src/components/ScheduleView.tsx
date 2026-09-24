@@ -25,7 +25,7 @@ export default function ScheduleView({ entries, group }: Props) {
         <table className="w-full text-sm border-collapse">
           <thead>
             <tr>
-              <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">Урок</th>
+              <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">Пара</th>
               {DAY_NAMES.map((d) => (
                 <th key={d} className="px-2 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
                   {d}
