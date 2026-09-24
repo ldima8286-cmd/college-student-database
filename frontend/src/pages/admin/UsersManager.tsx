@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Users as UsersIcon, Save, Shield, UserRound } from 'lucide-react';
-import { getAdminUsers, updateAdminUser, getGroups } from '../../api';
+import { getAdminUsers, updateAdminUser, getGroups, getMe } from '../../api';
 import { AdminUser, Role } from '../../types';
 import { toast } from 'react-hot-toast';
 
@@ -31,7 +31,7 @@ export default function UsersManager() {
   };
 
   useEffect(() => {
-    import('../../api').then(({ getMe }) => getMe().then((u) => setMeId(u?.id ?? null)).catch(() => {}));
+    getMe().then((u) => setMeId(u?.id ?? null)).catch(() => {});
     load();
   }, []);
 

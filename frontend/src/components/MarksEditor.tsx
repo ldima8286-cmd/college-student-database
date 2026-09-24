@@ -35,7 +35,11 @@ export default function MarksEditor({ studentId, studentName }: Props) {
     }
   };
 
-  useEffect(() => { load(); }, [studentId]);
+  useEffect(() => {
+    setSubjectId('');
+    setMarks([]);
+    load();
+  }, [studentId]);
 
   const refreshMarks = async () => {
     try {

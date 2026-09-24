@@ -138,12 +138,6 @@ export async function getStudents(params: {
   return data;
 }
 
-export async function getStudentById(id: string): Promise<Student> {
-  const { data } = await api.get<ApiResponse<Student>>(`/students/${id}`);
-  if (!data.success || !data.data) throw new Error('Студент не найден');
-  return data.data;
-}
-
 export async function createStudent(student: Omit<Student, 'id' | 'createdAt' | 'updatedAt'>): Promise<Student> {
   const { data } = await api.post<ApiResponse<Student>>('/students', student);
   if (!data.success || !data.data) throw new Error('Ошибка создания');

@@ -169,11 +169,3 @@ export default function BatchActions({ students, onBatchDelete, onBatchExport, o
     </>
   );
 }
-
-export function BatchCheckbox({ checked, onChange }: { checked: boolean; onChange: () => void }) {
-  return (
-    <button onClick={onChange} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700">
-      {checked ? <CheckSquare className="w-4 h-4 text-primary-600" /> : <Square className="w-4 h-4 text-gray-400" />}
-    </button>
-  );
-}

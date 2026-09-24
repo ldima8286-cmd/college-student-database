@@ -187,7 +187,7 @@ export async function getAllStudents(
   if (conditions.length > 0) query += ` WHERE ${conditions.join(' AND ')}`;
 
   const col = safeSortBy === 'group' ? '"group"' : safeSortBy;
-  query += ` ORDER BY ${col} COLLATE NOCASE ${sortOrder === 'desc' ? 'DESC' : 'ASC'}`;
+  query += ` ORDER BY ${col} ${sortOrder === 'desc' ? 'DESC' : 'ASC'}`;
   query += ` LIMIT ? OFFSET ?`;
   params.push(limit, (page - 1) * limit);
 
@@ -410,12 +410,12 @@ export async function updateUserRoleAndGroup(id: string, data: { role?: string; 
 }
 
 export async function getGroups(): Promise<string[]> {
-  const rows = sqliteDb.prepare(`SELECT DISTINCT "group" FROM students WHERE status = 'approved' AND "group" IS NOT NULL AND "group" <> '' ORDER BY "group" COLLATE NOCASE`).all() as any[];
+  const rows = sqliteDb.prepare(`SELECT DISTINCT "group" FROM students WHERE status = 'approved' AND "group" IS NOT NULL AND "group" <> '' ORDER BY "group"`).all() as any[];
   return rows.map((r) => r.group);
 }
 
 export async function listSubjects(): Promise<Subject[]> {
-  return sqliteDb.prepare('SELECT * FROM subjects ORDER BY name COLLATE NOCASE').all() as Subject[];
+  return sqliteDb.prepare('SELECT * FROM subjects ORDER BY name').all() as Subject[];
 }
 
 export async function createSubject(name: string): Promise<Subject> {
@@ -480,7 +480,7 @@ export async function getMarksByStudent(studentId: string): Promise<MarkRecord[]
   return sqliteDb.prepare(
     `SELECT m.id, m.studentId, m.subjectId, s.name as subjectName, m.mark, m.createdAt
      FROM marks m JOIN subjects s ON s.id = m.subjectId
-     WHERE m.studentId = ? ORDER BY s.name COLLATE NOCASE, m.createdAt`
+     WHERE m.studentId = ? ORDER BY s.name, m.createdAt`
   ).all(studentId) as MarkRecord[];
 }
 

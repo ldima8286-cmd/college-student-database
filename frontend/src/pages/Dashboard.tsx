@@ -81,10 +81,11 @@ export default function Dashboard() {
   }, [debouncedSearch, page, sortBy, sortOrder, filterDebt, filterCourse, navigate]);
 
   useEffect(() => {
+    if (!isUserAdmin) return;
     const controller = new AbortController();
     loadData(controller.signal);
     return () => controller.abort();
-  }, [loadData]);
+  }, [loadData, isUserAdmin]);
 
   const handleToggleDebt = async (student: Student) => {
     try {

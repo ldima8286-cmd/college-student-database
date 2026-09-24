@@ -58,14 +58,14 @@ export default function ScheduleManager() {
   };
 
   const handleSaveCell = async () => {
-    if (!editor || !group) return;
+    if (!editor || !editor.group) return;
     if (!subject.trim()) {
       toast.error('Введите предмет');
       return;
     }
     setSaving(true);
     const payload = {
-      group,
+      group: editor.group,
       subject: subject.trim(),
       dayOfWeek: editor.dayOfWeek,
       lessonNumber: editor.lessonNumber,

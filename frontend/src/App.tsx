@@ -1,8 +1,8 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { isAuthenticated, isAdmin, getRole } from './api';
+import { isAuthenticated, isAdmin, getRole, tryRefresh } from './api';
 import type { Role } from './types';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
@@ -36,10 +36,18 @@ function ProtectedRoute({ children, role }: { children: ReactNode; role?: Role }
   return <>{children}</>;
 }
 
+function RoleSync() {
+  useEffect(() => {
+    if (isAuthenticated()) void tryRefresh();
+  }, []);
+  return null;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
+      <RoleSync />
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={

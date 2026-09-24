@@ -7,10 +7,6 @@ export function sanitizePhone(input: string): string {
   return `${hasPlus ? '+' : ''}${digits}`.slice(0, PHONE_MAX_LENGTH);
 }
 
-export function formatStoredPhone(input: string | null | undefined): string {
-  return input ?? '';
-}
-
 export function isValidPhone(input: string): boolean {
   if (!input) return true;
   if (input.length > PHONE_MAX_LENGTH) return false;
