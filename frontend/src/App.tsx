@@ -1,24 +1,25 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { isAuthenticated, isAdmin, getRole, tryRefresh } from './api';
+import { retryableLazy } from './components/RetryableLazy';
 import type { Role } from './types';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 
-const AdminPanel = lazy(() => import('./pages/AdminPanel'));
-const AuditLog = lazy(() => import('./pages/AuditLog'));
-const Profile = lazy(() => import('./pages/Profile'));
-const Register = lazy(() => import('./pages/Register'));
-const PublicShowcase = lazy(() => import('./pages/PublicShowcase'));
-const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
-const ResetPassword = lazy(() => import('./pages/ResetPassword'));
-const ScheduleManager = lazy(() => import('./pages/admin/ScheduleManager'));
-const SubjectsManager = lazy(() => import('./pages/admin/SubjectsManager'));
-const UsersManager = lazy(() => import('./pages/admin/UsersManager'));
-const CuratorPanel = lazy(() => import('./pages/CuratorPanel'));
-const StudentDiary = lazy(() => import('./pages/StudentDiary'));
+const AdminPanel = retryableLazy(() => import('./pages/AdminPanel'));
+const AuditLog = retryableLazy(() => import('./pages/AuditLog'));
+const Profile = retryableLazy(() => import('./pages/Profile'));
+const Register = retryableLazy(() => import('./pages/Register'));
+const PublicShowcase = retryableLazy(() => import('./pages/PublicShowcase'));
+const ForgotPassword = retryableLazy(() => import('./pages/ForgotPassword'));
+const ResetPassword = retryableLazy(() => import('./pages/ResetPassword'));
+const ScheduleManager = retryableLazy(() => import('./pages/admin/ScheduleManager'));
+const SubjectsManager = retryableLazy(() => import('./pages/admin/SubjectsManager'));
+const UsersManager = retryableLazy(() => import('./pages/admin/UsersManager'));
+const CuratorPanel = retryableLazy(() => import('./pages/CuratorPanel'));
+const StudentDiary = retryableLazy(() => import('./pages/StudentDiary'));
 
 function PageLoader() {
   return (
