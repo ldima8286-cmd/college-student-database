@@ -59,7 +59,7 @@ import {
   revokeRefreshJti, verifyRefreshToken, revokeAllRefreshTokens,
 } from './auth.js';
 import { env } from './env.js';
-import { logAudit, getAuditLogs } from './audit.js';
+import { logAudit, getAuditLogs, clearAuditLogs } from './audit.js';
 import { registerWebhook, removeWebhook, triggerWebhook, listWebhooks, assertSafeWebhookUrl } from './webhooks.js';
 import { sendWelcomeEmail, sendPasswordResetEmail } from './email.js';
 import { cached, invalidateCache } from './cache.js';
@@ -628,6 +628,16 @@ router.get('/audit-logs', requireAdmin, async (req: Request, res: Response) => {
       page, limit,
       totalPages: Math.ceil(total / limit),
     });
+  } catch {
+    res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+router.delete('/audit-logs', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const deleted = await clearAuditLogs();
+    await logAudit('delete', 'audit_log', undefined, req.auth?.userId, { clearedAll: true });
+    res.json({ success: true, deleted });
   } catch {
     res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
   }

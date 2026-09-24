@@ -235,6 +235,12 @@ export async function getAuditLogs(page?: number, limit?: number, entity?: strin
   return data;
 }
 
+export async function clearAuditLogs(): Promise<number> {
+  const { data } = await api.delete<ApiResponse<{ deleted: number }>>('/audit-logs');
+  if (!data.success) throw new Error(data.error || 'Ошибка очистки журнала');
+  return data.data?.deleted ?? 0;
+}
+
 export async function batchDeleteStudents(ids: string[]): Promise<void> {
   await api.post('/students/batch-delete', { ids });
 }

@@ -9,3 +9,8 @@ export async function getAuditLogs(page: number = 1, limit: number = 50, entity?
   const mod = await getDbModule();
   return mod.getAuditLogs(page, limit, entity, action);
 }
+
+export async function clearAuditLogs() {
+  const mod = await getDbModule();
+  return mod.clearAuditLogs?.();
+}

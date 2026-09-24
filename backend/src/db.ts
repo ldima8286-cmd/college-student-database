@@ -119,6 +119,7 @@ interface DbModule {
   logAudit(action: string, entity: string, entityId?: string, userId?: string, details?: any): Promise<void>;
   getAuditLogs(page?: number, limit?: number, entity?: string, action?: string): Promise<{ data: any[]; total: number }>;
   pruneAuditLogs?(): Promise<number>;
+  clearAuditLogs?(): Promise<number>;
   saveRefreshSession(jti: string, userId: string, expiresAt: number): Promise<void>;
   getRefreshSession(jti: string): Promise<{ jti: string; userId: string; expiresAt: number } | undefined>;
   deleteRefreshSession(jti: string): Promise<boolean>;

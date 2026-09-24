@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Shield, Clock, Filter, Search, RefreshCw } from 'lucide-react';
-import { getAuditLogs } from '../api';
+import { Shield, Clock, Filter, Search, RefreshCw, Trash2, Loader2 } from 'lucide-react';
+import { getAuditLogs, clearAuditLogs } from '../api';
 import { toast } from 'react-hot-toast';
 import Pagination from '../components/Pagination';
 import AdminNav from '../components/AdminNav';
@@ -32,6 +32,26 @@ export default function AuditLog() {
   useEffect(() => { loadLogs(); }, [loadLogs]);
 
   useEffect(() => { setPage(1); }, [entity]);
+
+  const [clearing, setClearing] = useState(false);
+
+  const handleClear = async () => {
+    if (total === 0) return;
+    if (!window.confirm('Очистить журнал аудита полностью? Это действие удалит все записи и его нельзя отменить.')) return;
+    setClearing(true);
+    try {
+      const deleted = await clearAuditLogs();
+      toast.success(`Журнал аудита очищен (записей: ${deleted})`);
+      setLogs([]);
+      setTotal(0);
+      setTotalPages(1);
+      setPage(1);
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setClearing(false);
+    }
+  };
 
   const filtered = search.trim()
     ? logs.filter((l) => {
@@ -143,6 +163,15 @@ export default function AuditLog() {
           </div>
           <button onClick={loadLogs} className="btn btn-secondary text-sm flex items-center gap-1">
             <RefreshCw className="w-4 h-4" /> Обновить
+          </button>
+          <button
+            onClick={handleClear}
+            disabled={clearing || total === 0}
+            className="btn btn-danger text-sm flex items-center gap-1"
+            title="Удалить все записи журнала аудита"
+          >
+            {clearing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+            Очистить журнал
           </button>
         </div>
 

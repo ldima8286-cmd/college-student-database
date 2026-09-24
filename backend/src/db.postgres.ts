@@ -309,6 +309,11 @@ export async function getAuditLogs(page: number = 1, limit: number = 50, entity?
   return { data, total };
 }
 
+export async function clearAuditLogs(): Promise<number> {
+  const rows = await client.unsafe<{ id: number }[]>(`DELETE FROM audit_log RETURNING id`);
+  return rows.length;
+}
+
 export async function pruneAuditLogs(): Promise<number> {
   let deleted = 0;
   deleted += (await client.unsafe<{ id: number }[]>(

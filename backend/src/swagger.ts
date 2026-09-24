@@ -287,6 +287,16 @@ const swaggerSpec = {
           '403': { description: 'Admin only' },
         },
       },
+      delete: {
+        tags: ['Admin'],
+        summary: 'Clear audit logs',
+        security: [{ BearerAuth: [] }],
+        responses: {
+          '200': { description: 'Audit logs cleared' },
+          '401': { description: 'Unauthorized' },
+          '403': { description: 'Admin only' },
+        },
+      },
     },
     '/health': {
       get: {

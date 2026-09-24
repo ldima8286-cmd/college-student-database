@@ -420,6 +420,10 @@ export async function getAuditLogs(page: number = 1, limit: number = 50, entity?
   return _getAuditLogs(sqliteDb, page, limit, entity, action);
 }
 
+export async function clearAuditLogs(): Promise<number> {
+  return sqliteDb.prepare('DELETE FROM auditLog').run().changes;
+}
+
 export async function pruneAuditLogs(): Promise<number> {
   let deleted = 0;
   deleted += sqliteDb.prepare(
