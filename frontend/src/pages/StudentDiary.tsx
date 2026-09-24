@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { IdCard, BookOpen, CalendarDays, AlertTriangle } from 'lucide-react';
-import { getMyMarks, getSchedule, getMyStudent } from '../api';
+import { getMyMarks, getSchedule, getMyStudent, getSettings } from '../api';
 import { MarkRecord, ScheduleEntry, Student } from '../types';
 import { toast } from 'react-hot-toast';
 import MyStudentCard from '../components/MyStudentCard';
@@ -13,6 +13,7 @@ export default function StudentDiary() {
   const [tab, setTab] = useState<Tab>('profile');
   const [marks, setMarks] = useState<MarkRecord[]>([]);
   const [schedule, setSchedule] = useState<ScheduleEntry[]>([]);
+  const [semesterStart, setSemesterStart] = useState<string | null>(null);
   const [student, setStudent] = useState<Student | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -38,6 +39,7 @@ export default function StudentDiary() {
     try {
       const data = await getSchedule();
       setSchedule(data);
+      getSettings().then((s) => setSemesterStart(s.semesterStart)).catch(() => {});
     } catch (err: any) {
       toast.error(err.message);
     }
@@ -94,7 +96,7 @@ export default function StudentDiary() {
         <>
           {tab === 'profile' && <MyStudentCard />}
           {tab === 'marks' && <MarksView marks={marks} />}
-          {tab === 'schedule' && <ScheduleView entries={schedule} group={student?.group ?? null} />}
+          {tab === 'schedule' && <ScheduleView entries={schedule} group={student?.group ?? null} semesterStart={semesterStart} />}
         </>
       )}
     </div>

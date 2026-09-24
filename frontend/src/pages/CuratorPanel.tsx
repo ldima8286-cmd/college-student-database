@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { UserRound, Users, Phone, Mail, AlertTriangle, Activity, GraduationCap, ClipboardList } from 'lucide-react';
-import { getStudents, getMe, getSchedule } from '../api';
+import { getStudents, getMe, getSchedule, getSettings } from '../api';
 import { Student, ScheduleEntry } from '../types';
 import { toast } from 'react-hot-toast';
 import MarksEditor from '../components/MarksEditor';
@@ -13,6 +13,7 @@ export default function CuratorPanel() {
   const [selected, setSelected] = useState<Student | null>(null);
   const [group, setGroup] = useState<string | null>(null);
   const [schedule, setSchedule] = useState<ScheduleEntry[]>([]);
+  const [semesterStart, setSemesterStart] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -47,6 +48,7 @@ export default function CuratorPanel() {
     try {
       const data = await getSchedule();
       setSchedule(data);
+      getSettings().then((s) => setSemesterStart(s.semesterStart)).catch(() => {});
     } catch (err: any) {
       toast.error(err.message);
     }
@@ -171,7 +173,7 @@ export default function CuratorPanel() {
             </>
           )}
 
-          <ScheduleView entries={schedule} group={group} />
+          <ScheduleView entries={schedule} group={group} semesterStart={semesterStart} />
         </div>
       </div>
     </div>

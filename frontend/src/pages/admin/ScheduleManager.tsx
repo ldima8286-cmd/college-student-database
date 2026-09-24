@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { CalendarDays, Plus, Trash2, Save, X, Users } from 'lucide-react';
-import { getSchedule, createScheduleEntry, updateScheduleEntry, deleteScheduleEntry, deleteScheduleByGroup, getGroups, listSubjects } from '../../api';
-import { ScheduleEntry, Subject } from '../../types';
+import { getSchedule, createScheduleEntry, updateScheduleEntry, deleteScheduleEntry, deleteScheduleByGroup, getGroups, listSubjects, getSettings, updateSemesterStart } from '../../api';
+import { ScheduleEntry, Subject, ScheduleWeek } from '../../types';
+import { WEEK_LABELS, WEEK_SHORT, weekOfDate } from '../../utils/weeks';
 import { toast } from 'react-hot-toast';
 import AdminNav from '../../components/AdminNav';
 
@@ -15,21 +16,38 @@ interface CellEditor {
   entry?: ScheduleEntry;
 }
 
+function WeekBadge({ week }: { week: ScheduleWeek | null }) {
+  if (week === null) {
+    return <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400" title="Каждую неделю">кажд.</span>;
+  }
+  const cls = week === 'upper'
+    ? 'bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300'
+    : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300';
+  return <span className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold ${cls}`} title={WEEK_LABELS[week]}>
+    {WEEK_SHORT[week]} · {WEEK_LABELS[week]}
+  </span>;
+}
+
 export default function ScheduleManager() {
   const [group, setGroup] = useState('');
   const [knownGroups, setKnownGroups] = useState<string[]>([]);
   const [entries, setEntries] = useState<ScheduleEntry[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(false);
+  const [weekFilter, setWeekFilter] = useState<'' | ScheduleWeek>('');
+  const [semesterStart, setSemesterStartState] = useState('');
+  const [savingSettings, setSavingSettings] = useState(false);
   const [editor, setEditor] = useState<CellEditor | null>(null);
   const [subject, setSubject] = useState('');
   const [teacher, setTeacher] = useState('');
   const [room, setRoom] = useState('');
+  const [weekDraft, setWeekDraft] = useState<'' | ScheduleWeek>('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     getGroups().then(setKnownGroups).catch(() => {});
     listSubjects().then(setSubjects).catch(() => {});
+    getSettings().then((s) => setSemesterStartState(s.semesterStart)).catch(() => {});
   }, []);
 
   const load = useCallback(async () => {
@@ -50,12 +68,40 @@ export default function ScheduleManager() {
 
   useEffect(() => { load(); }, [load]);
 
-  const openCell = (dayOfWeek: number, lessonNumber: number) => {
-    const entry = entries.find((e) => e.dayOfWeek === dayOfWeek && e.lessonNumber === lessonNumber);
-    setEditor({ group, dayOfWeek, lessonNumber, entry });
-    setSubject(entry?.subject ?? '');
-    setTeacher(entry?.teacher ?? '');
-    setRoom(entry?.room ?? '');
+  const cellEntries = (dayOfWeek: number, lessonNumber: number) =>
+    entries.filter((e) => e.dayOfWeek === dayOfWeek && e.lessonNumber === lessonNumber);
+
+  const cellVisible = (dayOfWeek: number, lessonNumber: number) => {
+    const cell = cellEntries(dayOfWeek, lessonNumber);
+    if (!weekFilter) return cell;
+    return cell.filter((e) => e.week === null || e.week === weekFilter);
+  };
+
+  const availableWeeks = (dayOfWeek: number, lessonNumber: number): ScheduleWeek[] => {
+    const present = new Set(cellEntries(dayOfWeek, lessonNumber).map((e) => e.week ?? null));
+    if (present.has(null)) return [];
+    return (['upper', 'lower'] as ScheduleWeek[]).filter((w) => !present.has(w));
+  };
+
+  const openEntry = (entry: ScheduleEntry) => {
+    setEditor({ group, dayOfWeek: entry.dayOfWeek, lessonNumber: entry.lessonNumber, entry });
+    setSubject(entry.subject);
+    setTeacher(entry.teacher ?? '');
+    setRoom(entry.room ?? '');
+    setWeekDraft(entry.week ?? '');
+  };
+
+  const openNew = (dayOfWeek: number, lessonNumber: number) => {
+    const missing = availableWeeks(dayOfWeek, lessonNumber);
+    if (missing.length === 0) {
+      toast.error('В этой ячейке уже две записи на разные недели');
+      return;
+    }
+    setEditor({ group, dayOfWeek, lessonNumber });
+    setSubject('');
+    setTeacher('');
+    setRoom('');
+    setWeekDraft(weekFilter && missing.includes(weekFilter) ? weekFilter : missing[0]);
   };
 
   const handleSaveCell = async () => {
@@ -72,6 +118,7 @@ export default function ScheduleManager() {
       lessonNumber: editor.lessonNumber,
       teacher: teacher.trim() || null,
       room: room.trim() || null,
+      week: weekDraft === '' ? null : weekDraft,
     };
     try {
       if (editor.entry) {
@@ -113,13 +160,27 @@ export default function ScheduleManager() {
     }
   };
 
-  const cellKey = (day: number, lesson: number) =>
-    entries.find((e) => e.dayOfWeek === day && e.lessonNumber === lesson);
+  const handleSaveSemesterStart = async () => {
+    if (!semesterStart) return;
+    setSavingSettings(true);
+    try {
+      await updateSemesterStart(semesterStart);
+      toast.success('Начало семестра сохранено');
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setSavingSettings(false);
+    }
+  };
 
   const isEditing = (day: number, lesson: number) =>
     editor?.group === group && editor.dayOfWeek === day && editor.lessonNumber === lesson;
 
-  const dayCount = (day: number) => entries.filter((e) => e.dayOfWeek === day).length;
+  const visibleEntries = weekFilter ? entries.filter((e) => e.week === null || e.week === weekFilter) : entries;
+  const dayCount = (day: number) => visibleEntries.filter((e) => e.dayOfWeek === day).length;
+
+  const todayISO = new Date().toISOString().slice(0, 10);
+  const todayWeek = semesterStart ? weekOfDate(todayISO, semesterStart) : null;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
@@ -159,6 +220,29 @@ export default function ScheduleManager() {
             </button>
           </div>
         </div>
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="label">Начало семестра (дата — как в <span className="font-semibold">нижней</span> неделе)</label>
+            <div className="flex gap-2">
+              <input
+                type="date"
+                value={semesterStart}
+                onChange={(e) => setSemesterStartState(e.target.value)}
+                className="input"
+              />
+              <button onClick={handleSaveSemesterStart} disabled={savingSettings} className="btn btn-secondary">
+                Сохранить
+              </button>
+            </div>
+          </div>
+          <div className="flex items-end">
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {todayWeek
+                ? <>Сегодня — <span className="font-semibold">{WEEK_LABELS[todayWeek]}</span> неделя.</>
+                : 'Выберите дату начала семестра для определения недели.'}
+            </p>
+          </div>
+        </div>
       </div>
 
       {editor && (
@@ -167,8 +251,20 @@ export default function ScheduleManager() {
             {DAY_NAMES[editor.dayOfWeek - 1]}, пара {editor.lessonNumber}
             {editor.entry ? ' — редактирование' : ' — новая запись'}
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
             <div>
+              <label className="label">Неделя</label>
+              <select
+                value={weekDraft}
+                onChange={(e) => setWeekDraft((e.target.value || '') as '' | ScheduleWeek)}
+                className="input"
+              >
+                <option value="">Каждую неделю</option>
+                <option value="upper">Верхняя неделя</option>
+                <option value="lower">Нижняя неделя</option>
+              </select>
+            </div>
+            <div className="sm:col-span-2">
               <label className="label">Предмет *</label>
               <input
                 type="text"
@@ -217,7 +313,26 @@ export default function ScheduleManager() {
           </div>
         ) : (
           <>
-            {entries.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-4">
+              {['', 'upper', 'lower'].map((w) => {
+                const active = weekFilter === w;
+                const label = w === '' ? 'Обе недели' : WEEK_LABELS[w as ScheduleWeek];
+                return (
+                  <button
+                    key={w || 'all'}
+                    onClick={() => setWeekFilter(w as '' | ScheduleWeek)}
+                    className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+                      active
+                        ? 'bg-primary-600 border-primary-600 text-white'
+                        : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-primary-400'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+            {visibleEntries.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-4">
                 {DAY_NAMES.map((d, i) => (
                   <span key={d} className="px-3 py-1.5 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 font-medium">
@@ -225,7 +340,7 @@ export default function ScheduleManager() {
                   </span>
                 ))}
                 <span className="px-3 py-1.5 rounded-lg bg-primary-50 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-900 text-primary-700 dark:text-primary-300 font-semibold">
-                  Всего пар: {entries.length}
+                  Записей: {visibleEntries.length}
                 </span>
               </div>
             )}
@@ -244,18 +359,23 @@ export default function ScheduleManager() {
                   <td className="px-2 py-1 text-xs text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 whitespace-nowrap">{lesson}</td>
                   {DAY_NAMES.map((_, dayIdx) => {
                     const day = dayIdx + 1;
-                    const e = cellKey(day, lesson);
+                    const visible = cellVisible(day, lesson);
+                    const editing = isEditing(day, lesson);
                     return (
-                      <td key={`${lesson}-${day}`} className={`px-1 py-1 border border-gray-200 dark:border-gray-700 align-top ${isEditing(day, lesson) ? 'bg-primary-50 dark:bg-primary-900/20' : ''}`}>
-                        {e ? (
-                          <button onClick={() => openCell(day, lesson)} className="w-full text-left text-xs leading-snug group">
-                            <p className="font-medium text-gray-900 dark:text-white group-hover:text-primary-600">{e.subject}</p>
+                      <td key={`${lesson}-${day}`} className={`px-1 py-1 border border-gray-200 dark:border-gray-700 align-top ${editing ? 'bg-primary-50 dark:bg-primary-900/20' : ''}`}>
+                        {visible.map((e) => (
+                          <button key={e.id} onClick={() => openEntry(e)} className="w-full text-left text-xs leading-snug group block mb-0.5">
+                            <p className="font-medium text-gray-900 dark:text-white group-hover:text-primary-600 flex items-start justify-between gap-1">
+                              <span>{e.subject}</span>
+                              <WeekBadge week={e.week} />
+                            </p>
                             {e.teacher && <p className="text-gray-500 dark:text-gray-400">{e.teacher}</p>}
                             {e.room && <p className="text-gray-500 dark:text-gray-400">ауд. {e.room}</p>}
                           </button>
-                        ) : (
+                        ))}
+                        {availableWeeks(day, lesson).length > 0 && (
                           <button
-                            onClick={() => openCell(day, lesson)}
+                            onClick={() => openNew(day, lesson)}
                             className="w-full text-left text-gray-300 dark:text-gray-600 hover:text-primary-500 px-1 py-1.5 rounded"
                             title="Добавить занятие"
                           >
@@ -273,7 +393,7 @@ export default function ScheduleManager() {
         )}
       </div>
       <p className="text-xs text-gray-500 mt-3">
-        Нажмите на клетку, чтобы добавить или изменить занятие. Учебная неделя: Пн–Сб, до 10 пар.
+        Нажмите на клетку, чтобы изменить занятие. В одной клетке можно задать разные предметы для верхней и нижней недели. Учебная неделя: Пн–Сб, до 10 пар.
       </p>
       </main>
     </div>

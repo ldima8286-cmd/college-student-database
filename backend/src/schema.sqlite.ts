@@ -68,6 +68,7 @@ export const schedule = sqliteTable('schedule', {
   subject: text('subject').notNull(),
   teacher: text('teacher'),
   room: text('room'),
+  week: text('week', { enum: ['upper', 'lower'] }),
   createdAt: text('createdAt').notNull(),
   updatedAt: text('updatedAt').notNull(),
 }, (t) => [
@@ -75,6 +76,11 @@ export const schedule = sqliteTable('schedule', {
   check('schedule_lesson_check', sql`${t.lessonNumber} >= 1 AND ${t.lessonNumber} <= 10`),
   index('idx_schedule_group_day').on(t.group, t.dayOfWeek, t.lessonNumber),
 ]);
+
+export const settings = sqliteTable('settings', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+});
 
 export const marks = sqliteTable('marks', {
   id: text('id').primaryKey(),

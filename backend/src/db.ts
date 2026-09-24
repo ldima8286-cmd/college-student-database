@@ -46,8 +46,30 @@ export interface ScheduleEntry {
   subject: string;
   teacher: string | null;
   room: string | null;
+  week: ScheduleWeek | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export type ScheduleWeek = 'upper' | 'lower';
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
+export function defaultSemesterStart(date: Date = new Date()): string {
+  const acadY = date.getUTCMonth() + 1 >= 9 ? date.getUTCFullYear() : date.getUTCFullYear() - 1;
+  const sept1 = Date.UTC(acadY, 8, 1);
+  const dow = new Date(sept1).getUTCDay();
+  const toMonday = (dow + 6) % 7;
+  const monday = new Date(sept1 - toMonday * 86400000);
+  return `${monday.getUTCFullYear()}-${pad2(monday.getUTCMonth() + 1)}-${pad2(monday.getUTCDate())}`;
+}
+
+export function weekOfDate(date: string, semesterStart: string = defaultSemesterStart()): ScheduleWeek {
+  const [y, m, d] = date.split('-').map(Number);
+  const [sy, sm, sd] = semesterStart.split('-').map(Number);
+  const days = (Date.UTC(y, m - 1, d) - Date.UTC(sy, sm - 1, sd)) / 86400000;
+  const weekNumber = Math.floor(days / 7);
+  return weekNumber % 2 === 0 ? 'lower' : 'upper';
 }
 
 export interface MarkRecord {
@@ -147,9 +169,11 @@ interface DbModule {
   deleteMark(id: string): Promise<boolean>;
   recomputeStudentPerformance(studentId: string): Promise<void>;
   recomputeStudentAttendance(studentId: string): Promise<void>;
-  getJournalSummaries(group: string, date: string): Promise<JournalSummaryLesson[]>;
+  getJournalSummaries(group: string, date: string, week?: ScheduleWeek): Promise<JournalSummaryLesson[]>;
   getJournalLesson(scheduleId: string, date: string): Promise<JournalLesson | null>;
   saveJournalLesson(scheduleId: string, date: string, entries: { studentId: string; mark?: number | null; status?: AttendanceStatus | null }[]): Promise<JournalLesson | null>;
+  getSettings(): Promise<{ semesterStart: string }>;
+  setSemesterStart(date: string): Promise<void>;
   rawDb: any;
 }
 
@@ -304,6 +328,12 @@ export async function getJournalLesson(...args: Parameters<DbModule['getJournalL
 }
 export async function saveJournalLesson(...args: Parameters<DbModule['saveJournalLesson']>) {
   return (await getDbModule()).saveJournalLesson(...args);
+}
+export async function getSettings(...args: Parameters<DbModule['getSettings']>) {
+  return (await getDbModule()).getSettings(...args);
+}
+export async function setSemesterStart(...args: Parameters<DbModule['setSemesterStart']>) {
+  return (await getDbModule()).setSemesterStart(...args);
 }
 
 export let db: any = null;

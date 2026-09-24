@@ -298,6 +298,40 @@ const swaggerSpec = {
         },
       },
     },
+    '/settings': {
+      get: {
+        tags: ['Settings'],
+        summary: 'Get settings',
+        security: [{ BearerAuth: [] }],
+        responses: {
+          '200': { description: 'Settings', content: { 'application/json': { schema: { type: 'object', properties: { success: { type: 'boolean' }, data: { type: 'object', properties: { semesterStart: { type: 'string' } } } } } } } },
+          '401': { description: 'Unauthorized' },
+        },
+      },
+      put: {
+        tags: ['Settings'],
+        summary: 'Update settings',
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['semesterStart'],
+                properties: { semesterStart: { type: 'string' } },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': { description: 'Updated' },
+          '400': { description: 'Validation error' },
+          '401': { description: 'Unauthorized' },
+          '403': { description: 'Admin only' },
+        },
+      },
+    },
     '/health': {
       get: {
         tags: ['System'],

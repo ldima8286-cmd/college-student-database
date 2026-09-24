@@ -118,10 +118,15 @@ export const scheduleCreateSchema = z.object({
   subject: z.string().min(1, 'Укажите предмет').max(100),
   teacher: z.string().max(100).nullable().optional(),
   room: z.string().max(50).nullable().optional(),
+  week: z.enum(['upper', 'lower']).nullish(),
 });
 
 export const scheduleUpdateSchema = scheduleCreateSchema.partial().refine((p) => Object.keys(p).length > 0, {
   message: 'Нет полей для обновления',
+});
+
+export const settingsSchema = z.object({
+  semesterStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Дата в формате ГГГГ-ММ-ДД'),
 });
 
 export const markSchema = z.object({

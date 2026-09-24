@@ -1,6 +1,7 @@
 import Database, { type Database as DatabaseType } from 'better-sqlite3';
 import { env } from './env.js';
-import type { Student, UserRecord, Subject, ScheduleEntry, MarkRecord, JournalLesson, JournalSummaryLesson, AttendanceStatus, JournalStudentRow } from './db.js';
+import type { Student, UserRecord, Subject, ScheduleEntry, MarkRecord, JournalLesson, JournalSummaryLesson, AttendanceStatus, JournalStudentRow, ScheduleWeek } from './db.js';
+import { defaultSemesterStart } from './db.js';
 import { logAudit as _logAudit, getAuditLogs as _getAuditLogs } from './audit.sqlite.js';
 
 const sqliteDb: DatabaseType = new Database(env.DATABASE_URL.replace('sqlite:', ''));
@@ -96,8 +97,16 @@ sqliteDb.exec(`
     subject TEXT NOT NULL,
     teacher TEXT,
     room TEXT,
+    week TEXT CHECK(week IN ('upper', 'lower')),
     createdAt TEXT NOT NULL,
     updatedAt TEXT NOT NULL
+  )
+`);
+
+sqliteDb.exec(`
+  CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
   )
 `);
 
@@ -194,15 +203,20 @@ export async function ensureSchema(): Promise<void> {
         subject TEXT NOT NULL,
         teacher TEXT,
         room TEXT,
+        week TEXT CHECK(week IN ('upper', 'lower')),
         createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL
       );
-      INSERT INTO schedule_new (id, "group", dayOfWeek, lessonNumber, subject, teacher, room, createdAt, updatedAt)
-        SELECT id, "group", dayOfWeek, lessonNumber, subject, teacher, room, createdAt, updatedAt FROM schedule WHERE dayOfWeek <= 6;
+      INSERT INTO schedule_new (id, "group", dayOfWeek, lessonNumber, subject, teacher, room, week, createdAt, updatedAt)
+        SELECT id, "group", dayOfWeek, lessonNumber, subject, teacher, room, NULL, createdAt, updatedAt FROM schedule WHERE dayOfWeek <= 6;
       DROP TABLE schedule;
       ALTER TABLE schedule_new RENAME TO schedule;
     `);
     sqliteDb.pragma('foreign_keys = ON');
+  }
+  const schedCols = sqliteDb.prepare(`PRAGMA table_info(schedule)`).all() as any[];
+  if (!schedCols.some((c: any) => c.name === 'week')) {
+    sqliteDb.exec(`ALTER TABLE schedule ADD COLUMN week TEXT CHECK(week IN ('upper', 'lower'))`);
   }
   sqliteDb.exec(`
     CREATE TABLE IF NOT EXISTS attendance (
@@ -517,7 +531,7 @@ export async function deleteSubject(id: string): Promise<boolean> {
   return sqliteDb.prepare('DELETE FROM subjects WHERE id = ?').run(id).changes > 0;
 }
 
-const scheduleCols = ['id', 'group', 'dayOfWeek', 'lessonNumber', 'subject', 'teacher', 'room', 'createdAt', 'updatedAt'];
+const scheduleCols = ['id', 'group', 'dayOfWeek', 'lessonNumber', 'subject', 'teacher', 'room', 'week', 'createdAt', 'updatedAt'];
 
 export async function getSchedule(group?: string): Promise<ScheduleEntry[]> {
   const where = group ? 'WHERE "group" = ?' : '';
@@ -531,9 +545,9 @@ export async function createScheduleEntry(data: Omit<ScheduleEntry, 'id' | 'crea
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   sqliteDb.prepare(
-    `INSERT INTO schedule (id, "group", dayOfWeek, lessonNumber, subject, teacher, room, createdAt, updatedAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(id, data.group, data.dayOfWeek, data.lessonNumber, data.subject, data.teacher ?? null, data.room ?? null, now, now);
+    `INSERT INTO schedule (id, "group", dayOfWeek, lessonNumber, subject, teacher, room, week, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(id, data.group, data.dayOfWeek, data.lessonNumber, data.subject, data.teacher ?? null, data.room ?? null, data.week ?? null, now, now);
   return (await getSchedule(data.group)).find((e) => e.id === id)!;
 }
 
@@ -547,11 +561,12 @@ export async function updateScheduleEntry(id: string, data: Partial<Omit<Schedul
     subject: data.subject ?? existing.subject,
     teacher: data.teacher !== undefined ? data.teacher : existing.teacher,
     room: data.room !== undefined ? data.room : existing.room,
+    week: data.week !== undefined ? data.week : existing.week,
     updatedAt: new Date().toISOString(),
   };
   sqliteDb.prepare(
-    `UPDATE schedule SET "group" = ?, dayOfWeek = ?, lessonNumber = ?, subject = ?, teacher = ?, room = ?, updatedAt = ? WHERE id = ?`
-  ).run(updated.group, updated.dayOfWeek, updated.lessonNumber, updated.subject, updated.teacher, updated.room, updated.updatedAt, id);
+    `UPDATE schedule SET "group" = ?, dayOfWeek = ?, lessonNumber = ?, subject = ?, teacher = ?, room = ?, week = ?, updatedAt = ? WHERE id = ?`
+  ).run(updated.group, updated.dayOfWeek, updated.lessonNumber, updated.subject, updated.teacher, updated.room, updated.week, updated.updatedAt, id);
   const row = sqliteDb.prepare('SELECT * FROM schedule WHERE id = ?').get(id) as any;
   return row ? { ...row } : null;
 }
@@ -620,11 +635,11 @@ export async function recomputeStudentAttendance(studentId: string): Promise<voi
   sqliteDb.prepare('UPDATE students SET attendance = ?, updatedAt = ? WHERE id = ?').run(value, new Date().toISOString(), studentId);
 }
 
-export async function getJournalSummaries(group: string, date: string): Promise<JournalSummaryLesson[]> {
+export async function getJournalSummaries(group: string, date: string, week?: ScheduleWeek): Promise<JournalSummaryLesson[]> {
   const studentRows = sqliteDb.prepare(`SELECT id FROM students WHERE "group" = ? AND status = 'approved'`).all(group) as any[];
   if (studentRows.length === 0) return [];
   const ph = studentRows.map(() => '?').join(',');
-  const lessons = sqliteDb.prepare(`SELECT id, lessonNumber, subject, teacher, room FROM schedule WHERE "group" = ? AND dayOfWeek = ((strftime('%w', ?) + 6) % 7) + 1 ORDER BY lessonNumber`).all(group, date) as any[];
+  const lessons = sqliteDb.prepare(`SELECT id, lessonNumber, subject, teacher, room FROM schedule WHERE "group" = ? AND dayOfWeek = ((strftime('%w', ?) + 6) % 7) + 1 AND (week IS NULL OR week = ?) ORDER BY lessonNumber`).all(group, date, week ?? null) as any[];
   return lessons.map((l) => {
     const marked = (sqliteDb.prepare(`SELECT COUNT(*) as c FROM marks WHERE scheduleId = ? AND date = ? AND studentId IN (${ph})`).get(l.id, date, ...studentRows.map((s) => s.id)) as any)?.c ?? 0;
     const attRows = sqliteDb.prepare(`SELECT status, COUNT(*) as c FROM attendance WHERE scheduleId = ? AND date = ? AND studentId IN (${ph}) GROUP BY status`).all(l.id, date, ...studentRows.map((s) => s.id)) as any[];
@@ -727,4 +742,13 @@ export async function deleteRefreshSession(jti: string): Promise<boolean> {
 
 export async function deleteRefreshSessionsByUserId(userId: string): Promise<number> {
   return sqliteDb.prepare('DELETE FROM refreshSessions WHERE userId = ?').run(userId).changes;
+}
+
+export async function getSettings(): Promise<{ semesterStart: string }> {
+  const row = sqliteDb.prepare(`SELECT value FROM settings WHERE key = 'semesterStart'`).get() as any;
+  return { semesterStart: row?.value ?? defaultSemesterStart() };
+}
+
+export async function setSemesterStart(date: string): Promise<void> {
+  sqliteDb.prepare(`INSERT INTO settings (key, value) VALUES ('semesterStart', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`).run(date);
 }

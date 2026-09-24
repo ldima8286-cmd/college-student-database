@@ -42,6 +42,9 @@ vi.mock('./db.js', () => ({
   getJournalSummaries: vi.fn().mockResolvedValue([]),
   getJournalLesson: vi.fn().mockResolvedValue(null),
   saveJournalLesson: vi.fn().mockResolvedValue(null),
+  getSettings: vi.fn().mockResolvedValue({ semesterStart: '2026-08-31' }),
+  setSemesterStart: vi.fn().mockResolvedValue(undefined),
+  weekOfDate: vi.fn().mockReturnValue('upper'),
   db: { select: vi.fn().mockReturnThis(), from: vi.fn().mockReturnThis(), insert: vi.fn().mockReturnThis(), values: vi.fn().mockResolvedValue([]) },
 }));
 

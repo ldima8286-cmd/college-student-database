@@ -1,5 +1,5 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
-import { Student, StudentStatus, PaginatedResponse, StudentStats, ApiResponse, Role, Subject, ScheduleEntry, MarkRecord, AdminUser, AttendanceStatus, JournalLesson, JournalSummaryLesson } from './types';
+import { Student, StudentStatus, PaginatedResponse, StudentStats, ApiResponse, Role, Subject, ScheduleEntry, ScheduleWeek, MarkRecord, AdminUser, AttendanceStatus, JournalLesson, JournalSummaryLesson, Settings } from './types';
 
 export type { Role };
 
@@ -308,9 +308,29 @@ export async function deleteScheduleByGroup(group: string): Promise<number> {
   return data.data?.deleted ?? 0;
 }
 
-export async function getJournalSummary(group: string, date: string): Promise<JournalSummaryLesson[]> {
+export interface JournalSummaryResult {
+  lessons: JournalSummaryLesson[];
+  week: ScheduleWeek;
+  semesterStart: string;
+}
+
+export async function getJournalSummary(group: string, date: string): Promise<JournalSummaryResult> {
   const { data } = await api.get<ApiResponse<JournalSummaryLesson[]>>('/journal/summary', { params: { group, date } });
   if (!data.success || !data.data) throw new Error(data.error || 'Ошибка загрузки журнала');
+  const week = (data as any).week as ScheduleWeek;
+  const semesterStart = (data as any).semesterStart as string;
+  return { lessons: data.data, week: week ?? 'upper', semesterStart: semesterStart ?? '' };
+}
+
+export async function getSettings(): Promise<Settings> {
+  const { data } = await api.get<ApiResponse<Settings>>('/settings');
+  if (!data.success || !data.data) throw new Error(data.error || 'Ошибка загрузки настроек');
+  return data.data;
+}
+
+export async function updateSemesterStart(semesterStart: string): Promise<Settings> {
+  const { data } = await api.put<ApiResponse<Settings>>('/settings', { semesterStart });
+  if (!data.success || !data.data) throw new Error(data.error || 'Ошибка сохранения настроек');
   return data.data;
 }
 

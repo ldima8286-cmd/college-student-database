@@ -41,6 +41,9 @@ import {
   getJournalSummaries,
   getJournalLesson,
   saveJournalLesson,
+  getSettings,
+  setSemesterStart,
+  weekOfDate,
 } from './db.js';
 import {
   studentSchema, studentUpdateSchema, studentSelfSchema, querySchema,
@@ -48,7 +51,7 @@ import {
   updateProfileSchema, changePasswordSchema, batchIdsSchema, batchUpdateSchema, webhookSchema,
   forgotPasswordSchema, resetPasswordSchema, subjectSchema,
   scheduleCreateSchema, scheduleUpdateSchema, markSchema, markUpdateSchema, userAdminUpdateSchema,
-  journalQuerySchema, journalDateQuerySchema, journalSaveSchema,
+  journalQuerySchema, journalDateQuerySchema, journalSaveSchema, settingsSchema,
 } from './validation.js';
 import {
   authenticate, requireAuth, requireAdmin, requireCsrf, getAuthInfo,
@@ -66,6 +69,12 @@ import { cached, invalidateCache } from './cache.js';
 import { logger } from './logger.js';
 
 export const router = Router();
+
+function weekOverlaps(a?: string | null, b?: string | null): boolean {
+  const x = a ?? null;
+  const y = b ?? null;
+  return x === null || y === null || x === y;
+}
 
 const CACHE_TTL = 30_000;
 const invalidateStudentsCache = () => invalidateCache('students.');
@@ -727,11 +736,11 @@ router.post('/schedule', requireAdminOrCurator, async (req: Request, res: Respon
       return res.status(403).json({ success: false, error: 'Куратор может вести расписание только своей группы' });
     }
     const existing = await getSchedule(data.group);
-    if (existing.some((e) => e.dayOfWeek === data.dayOfWeek && e.lessonNumber === data.lessonNumber)) {
+    if (existing.some((e) => e.dayOfWeek === data.dayOfWeek && e.lessonNumber === data.lessonNumber && weekOverlaps(e.week, data.week))) {
       return res.status(400).json({ success: false, error: 'Ячейка расписания уже заполнена — используйте обновление' });
     }
-    const entry = await createScheduleEntry({ ...data, teacher: data.teacher ?? null, room: data.room ?? null });
-    logAudit('create', 'schedule', entry.id, req.auth?.role, { group: data.group, dayOfWeek: data.dayOfWeek, lessonNumber: data.lessonNumber });
+    const entry = await createScheduleEntry({ ...data, teacher: data.teacher ?? null, room: data.room ?? null, week: data.week ?? null });
+    logAudit('create', 'schedule', entry.id, req.auth?.role, { group: data.group, dayOfWeek: data.dayOfWeek, lessonNumber: data.lessonNumber, week: data.week ?? null });
     res.status(201).json({ success: true, data: entry });
   } catch (err: any) {
     if (err.name === 'ZodError') {
@@ -753,14 +762,15 @@ router.put('/schedule/:id', requireAdminOrCurator, async (req: Request, res: Res
     const group = data.group ?? existing.group;
     const dayOfWeek = data.dayOfWeek ?? existing.dayOfWeek;
     const lessonNumber = data.lessonNumber ?? existing.lessonNumber;
+    const week = data.week !== undefined ? data.week : existing.week;
     const collision = (await getSchedule(group)).find(
-      (e) => e.id !== req.params.id && e.dayOfWeek === dayOfWeek && e.lessonNumber === lessonNumber
+      (e) => e.id !== req.params.id && e.dayOfWeek === dayOfWeek && e.lessonNumber === lessonNumber && weekOverlaps(e.week, week)
     );
     if (collision) {
       return res.status(400).json({ success: false, error: 'Ячейка расписания уже занята другой записью' });
     }
     const entry = await updateScheduleEntry(req.params.id, data);
-    logAudit('update', 'schedule', req.params.id, req.auth?.role, { group: existing.group });
+    logAudit('update', 'schedule', req.params.id, req.auth?.role, { group: existing.group, week: data.week ?? null });
     res.json({ success: true, data: entry });
   } catch (err: any) {
     if (err.name === 'ZodError') {
@@ -802,6 +812,29 @@ router.delete('/schedule', requireAdminOrCurator, async (req: Request, res: Resp
   }
 });
 
+router.get('/settings', requireAuth, async (_req: Request, res: Response) => {
+  try {
+    const data = await getSettings();
+    res.json({ success: true, data });
+  } catch {
+    res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+router.put('/settings', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const body = settingsSchema.parse(req.body);
+    await setSemesterStart(body.semesterStart);
+    logAudit('update', 'settings', undefined, req.auth?.role, { semesterStart: body.semesterStart });
+    res.json({ success: true, data: { semesterStart: body.semesterStart } });
+  } catch (err: any) {
+    if (err.name === 'ZodError') {
+      return res.status(400).json({ success: false, error: 'Ошибка валидации', details: err.errors });
+    }
+    res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
+  }
+});
+
 router.get('/journal/summary', requireAdminOrCurator, async (req: Request, res: Response) => {
   try {
     const query = journalQuerySchema.parse(req.query);
@@ -811,8 +844,10 @@ router.get('/journal/summary', requireAdminOrCurator, async (req: Request, res: 
         return res.status(403).json({ success: false, error: 'Куратор может вести журнал только своей группы' });
       }
     }
-    const data = await getJournalSummaries(query.group, query.date);
-    res.json({ success: true, data });
+    const { semesterStart } = await getSettings();
+    const week = weekOfDate(query.date, semesterStart);
+    const data = await getJournalSummaries(query.group, query.date, week);
+    res.json({ success: true, data, week, semesterStart });
   } catch (err: any) {
     if (err.name === 'ZodError') {
       return res.status(400).json({ success: false, error: 'Неверные параметры', details: err.errors });

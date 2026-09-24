@@ -3,7 +3,8 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import { eq, sql, like, or, and, count, avg, desc, asc, inArray, getTableColumns } from 'drizzle-orm';
 import { students, auditLog, users, subjects, schedule, marks } from './schema.js';
 import { env } from './env.js';
-import type { Student, UserRecord, Subject, ScheduleEntry, MarkRecord, JournalLesson, JournalSummaryLesson, AttendanceStatus, JournalStudentRow } from './db.js';
+import type { Student, UserRecord, Subject, ScheduleEntry, MarkRecord, JournalLesson, JournalSummaryLesson, AttendanceStatus, JournalStudentRow, ScheduleWeek } from './db.js';
+import { defaultSemesterStart } from './db.js';
 
 const client = postgres(env.DATABASE_URL);
 const db = drizzle(client);
@@ -73,9 +74,15 @@ export async function ensureSchema(): Promise<void> {
       subject TEXT NOT NULL,
       teacher TEXT,
       room TEXT,
+      week TEXT CHECK (week IN ('upper', 'lower')),
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+    ALTER TABLE schedule ADD COLUMN IF NOT EXISTS week TEXT CHECK (week IN ('upper', 'lower'));
     CREATE TABLE IF NOT EXISTS marks (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       student_id uuid NOT NULL REFERENCES students(id) ON DELETE CASCADE,
@@ -410,7 +417,7 @@ export async function getSchedule(group?: string): Promise<ScheduleEntry[]> {
     : await db.select().from(schedule).orderBy(asc(schedule.dayOfWeek), asc(schedule.lessonNumber));
   return rows.map((r) => ({
     id: r.id, group: r.group, dayOfWeek: r.dayOfWeek, lessonNumber: r.lessonNumber,
-    subject: r.subject, teacher: r.teacher, room: r.room,
+    subject: r.subject, teacher: r.teacher, room: r.room, week: r.week ?? null,
     createdAt: (r as any).createdAt?.toISOString?.() ?? new Date().toISOString(),
     updatedAt: (r as any).updatedAt?.toISOString?.() ?? new Date().toISOString(),
   })) as ScheduleEntry[];
@@ -420,13 +427,13 @@ export async function createScheduleEntry(data: Omit<ScheduleEntry, 'id' | 'crea
   const now = new Date();
   const inserted = await db.insert(schedule).values({
     group: data.group, dayOfWeek: data.dayOfWeek, lessonNumber: data.lessonNumber,
-    subject: data.subject, teacher: data.teacher ?? null, room: data.room ?? null,
+    subject: data.subject, teacher: data.teacher ?? null, room: data.room ?? null, week: data.week ?? null,
     createdAt: now, updatedAt: now,
   }).returning();
   const r = inserted[0];
   return {
     id: r.id, group: r.group, dayOfWeek: r.dayOfWeek, lessonNumber: r.lessonNumber,
-    subject: r.subject, teacher: r.teacher, room: r.room,
+    subject: r.subject, teacher: r.teacher, room: r.room, week: r.week ?? null,
     createdAt: (r as any).createdAt?.toISOString?.() ?? now.toISOString(),
     updatedAt: (r as any).updatedAt?.toISOString?.() ?? now.toISOString(),
   };
@@ -444,7 +451,7 @@ export async function updateScheduleEntry(id: string, data: Partial<Omit<Schedul
   const r = rows[0];
   return {
     id: r.id, group: r.group, dayOfWeek: r.dayOfWeek, lessonNumber: r.lessonNumber,
-    subject: r.subject, teacher: r.teacher, room: r.room,
+    subject: r.subject, teacher: r.teacher, room: r.room, week: r.week ?? null,
     createdAt: (r as any).createdAt?.toISOString?.() ?? new Date().toISOString(),
     updatedAt: (r as any).updatedAt?.toISOString?.() ?? new Date().toISOString(),
   };
@@ -524,12 +531,12 @@ export async function recomputeStudentAttendance(studentId: string): Promise<voi
   await client.unsafe(`UPDATE students SET attendance = $1, updated_at = now() WHERE id = $2`, [value, studentId]);
 }
 
-export async function getJournalSummaries(group: string, date: string): Promise<JournalSummaryLesson[]> {
+export async function getJournalSummaries(group: string, date: string, week?: ScheduleWeek): Promise<JournalSummaryLesson[]> {
   const studentRows = await client.unsafe<{ id: string }[]>(`SELECT id FROM students WHERE "group" = $1 AND status = 'approved'`, [group]);
   if (studentRows.length === 0) return [];
   const ids = studentRows.map((s) => s.id);
   const lessons = await client.unsafe<{ id: string; lesson_number: number; subject: string; teacher: string | null; room: string | null }[]>(
-    `SELECT id, lesson_number, subject, teacher, room FROM schedule WHERE "group" = $1 AND day_of_week = ((EXTRACT(DOW FROM $2::date)::int + 6) % 7) + 1 ORDER BY lesson_number`, [group, date]
+    `SELECT id, lesson_number, subject, teacher, room FROM schedule WHERE "group" = $1 AND day_of_week = ((EXTRACT(DOW FROM $2::date)::int + 6) % 7) + 1 AND (week IS NULL OR week = $3) ORDER BY lesson_number`, [group, date, week ?? null]
   );
   const result: JournalSummaryLesson[] = [];
   for (const l of lessons) {
@@ -649,4 +656,16 @@ export async function deleteRefreshSession(jti: string): Promise<boolean> {
 export async function deleteRefreshSessionsByUserId(userId: string): Promise<number> {
   const rows = await client.unsafe<{ user_id: string }[]>(`DELETE FROM refresh_sessions WHERE user_id = $1 RETURNING user_id`, [userId]);
   return rows.length;
+}
+
+export async function getSettings(): Promise<{ semesterStart: string }> {
+  const rows = await client.unsafe<{ value: string }[]>(`SELECT value FROM settings WHERE key = 'semesterStart'`);
+  return { semesterStart: rows[0]?.value ?? defaultSemesterStart() };
+}
+
+export async function setSemesterStart(date: string): Promise<void> {
+  await client.unsafe(
+    `INSERT INTO settings (key, value) VALUES ('semesterStart', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+    [date]
+  );
 }

@@ -69,6 +69,7 @@ export const schedule = pgTable('schedule', {
   subject: text('subject').notNull(),
   teacher: text('teacher'),
   room: text('room'),
+  week: text('week', { enum: ['upper', 'lower'] }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
@@ -76,6 +77,11 @@ export const schedule = pgTable('schedule', {
   check('schedule_lesson_check', sql`${t.lessonNumber} >= 1 AND ${t.lessonNumber} <= 10`),
   index('idx_schedule_group_day').on(t.group, t.dayOfWeek, t.lessonNumber),
 ]);
+
+export const settings = pgTable('settings', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+});
 
 export const marks = pgTable('marks', {
   id: uuid('id').primaryKey().defaultRandom(),

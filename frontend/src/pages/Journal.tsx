@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { ClipboardList, CalendarDays, ArrowLeft, ChevronLeft, ChevronRight, Save, CheckCheck, Loader2, UserCheck, UserX, Clock, Users } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { getMe, getGroups, getJournalSummary, getJournalLesson, saveJournalLesson, isCurator, isAdmin } from '../api';
-import { AttendanceStatus, JournalSummaryLesson, JournalLesson } from '../types';
+import { AttendanceStatus, JournalSummaryLesson, JournalLesson, ScheduleWeek } from '../types';
+import { WEEK_LABELS } from '../utils/weeks';
 import AdminNav from '../components/AdminNav';
 
 const today = () => {
@@ -41,6 +42,7 @@ export default function Journal() {
   const [group, setGroup] = useState<string>('');
   const [date, setDate] = useState<string>(today());
   const [lessons, setLessons] = useState<JournalSummaryLesson[]>([]);
+  const [week, setWeek] = useState<ScheduleWeek | null>(null);
   const [lesson, setLesson] = useState<JournalLesson | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
@@ -74,8 +76,9 @@ export default function Journal() {
     }
     try {
       setLoading(true);
-      const data = await getJournalSummary(group, date);
-      setLessons(data);
+      const result = await getJournalSummary(group, date);
+      setLessons(result.lessons);
+      setWeek(result.week);
     } catch (err: any) {
       toast.error(err.message);
     } finally {
@@ -169,6 +172,11 @@ export default function Journal() {
               <ChevronRight className="w-4 h-4" />
             </button>
             <button onClick={() => { setDate(today()); setLesson(null); }} className="btn btn-secondary text-sm">Сегодня</button>
+            {week && (
+              <span className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-primary-50 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-900 text-primary-700 dark:text-primary-300">
+                {WEEK_LABELS[week]} неделя
+              </span>
+            )}
           </div>
         </div>
 

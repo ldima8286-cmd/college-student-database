@@ -53,6 +53,12 @@ export interface Subject {
   createdAt: string;
 }
 
+export type ScheduleWeek = 'upper' | 'lower';
+
+export interface Settings {
+  semesterStart: string;
+}
+
 export interface ScheduleEntry {
   id: string;
   group: string;
@@ -61,6 +67,7 @@ export interface ScheduleEntry {
   subject: string;
   teacher: string | null;
   room: string | null;
+  week: ScheduleWeek | null;
   createdAt: string;
   updatedAt: string;
 }
