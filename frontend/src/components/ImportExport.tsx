@@ -118,11 +118,16 @@ export default function ImportExport({ onImportComplete }: Props) {
 
   const buildPreview = async (data: any[], tableName: string) => {
     const existingKeys = await loadExistingKeys();
+    const seen = new Set<string>();
     const rows: PreviewRow[] = [];
     data.forEach((row, i) => {
       const { student, error } = parseStudentRow(row);
       const key = student ? keyOf(student) : '';
-      const duplicate = student ? existingKeys.has(key) : false;
+      let duplicate = student ? existingKeys.has(key) : false;
+      if (student && !duplicate) {
+        if (seen.has(key)) duplicate = true;
+        else seen.add(key);
+      }
       rows.push({
         key,
         rowNumber: i + 2,

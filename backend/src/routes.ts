@@ -414,7 +414,7 @@ router.post('/students/batch-delete', requireAdmin, async (req: Request, res: Re
   }
 });
 
-router.post('/students/batch-export', requireAuth, async (req: Request, res: Response) => {
+router.post('/students/batch-export', requireAdminOrCurator, async (req: Request, res: Response) => {
   try {
     let result;
     const isAdmin = req.auth?.role === 'admin';
@@ -735,6 +735,15 @@ router.put('/schedule/:id', requireAdminOrCurator, async (req: Request, res: Res
     if (curatorGroup && existing.group !== curatorGroup) {
       return res.status(403).json({ success: false, error: 'Недостаточно прав' });
     }
+    const group = data.group ?? existing.group;
+    const dayOfWeek = data.dayOfWeek ?? existing.dayOfWeek;
+    const lessonNumber = data.lessonNumber ?? existing.lessonNumber;
+    const collision = (await getSchedule(group)).find(
+      (e) => e.id !== req.params.id && e.dayOfWeek === dayOfWeek && e.lessonNumber === lessonNumber
+    );
+    if (collision) {
+      return res.status(400).json({ success: false, error: 'Ячейка расписания уже занята другой записью' });
+    }
     const entry = await updateScheduleEntry(req.params.id, data);
     logAudit('update', 'schedule', req.params.id, req.auth?.role, { group: existing.group });
     res.json({ success: true, data: entry });
@@ -779,17 +788,6 @@ router.delete('/schedule', requireAdminOrCurator, async (req: Request, res: Resp
 });
 
 router.get('/marks/me', requireAuth, async (req: Request, res: Response) => {
-  try {
-    const student = await getStudentByUserId(req.auth!.userId);
-    if (!student) return res.json({ success: true, data: [] });
-    const data = await getMarksByStudent(student.id);
-    res.json({ success: true, data });
-  } catch {
-    res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
-  }
-});
-
-router.get('/students/me/marks', requireAuth, async (req: Request, res: Response) => {
   try {
     const student = await getStudentByUserId(req.auth!.userId);
     if (!student) return res.json({ success: true, data: [] });

@@ -5,6 +5,7 @@ import { Student, ScheduleEntry } from '../types';
 import { toast } from 'react-hot-toast';
 import MarksEditor from '../components/MarksEditor';
 import ScheduleView from '../components/ScheduleView';
+import Pagination from '../components/Pagination';
 
 export default function CuratorPanel() {
   const [students, setStudents] = useState<Student[]>([]);
@@ -12,6 +13,10 @@ export default function CuratorPanel() {
   const [group, setGroup] = useState<string | null>(null);
   const [schedule, setSchedule] = useState<ScheduleEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [limit] = useState(50);
 
   useEffect(() => {
     getMe().then((u) => setGroup(u?.group ?? null)).catch(() => {});
@@ -20,17 +25,22 @@ export default function CuratorPanel() {
   const loadStudents = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await getStudents({ limit: 200, sortBy: 'fullName', sortOrder: 'asc' });
+      const res = await getStudents({ page, limit, sortBy: 'fullName', sortOrder: 'asc' });
       setStudents(res.data);
-      if (res.data.length > 0) setSelected((prev) => prev ?? res.data[0]);
+      setTotalPages(res.totalPages || 1);
+      setTotal(res.total || 0);
+      setSelected((prev) => {
+        if (prev && res.data.some((s) => s.id === prev.id)) return prev;
+        return res.data[0] ?? null;
+      });
     } catch (err: any) {
       toast.error(err.message);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, limit]);
 
-  useEffect(() => { loadStudents(); }, [loadStudents]);
+  useEffect(() => { loadStudents(); }, [loadStudents]);;
 
   const loadSchedule = useCallback(async () => {
     try {
@@ -55,7 +65,7 @@ export default function CuratorPanel() {
             Полный доступ к данным студентов группы{group ? ` ${group}` : ''}
           </p>
         </div>
-        <button onClick={() => { loadStudents(); loadSchedule(); }} className="btn btn-secondary text-sm">Обновить</button>
+        <button onClick={() => { if (page !== 1) setPage(1); else { loadStudents(); loadSchedule(); } }} className="btn btn-secondary text-sm">Обновить</button>
       </div>
 
       {students.length === 0 && !loading && (
@@ -94,6 +104,11 @@ export default function CuratorPanel() {
                   </li>
                 ))}
               </ul>
+            )}
+            {!loading && students.length > 0 && (
+              <div className="mt-3">
+                <Pagination page={page} totalPages={totalPages} total={total} onPageChange={setPage} />
+              </div>
             )}
           </div>
         </div>

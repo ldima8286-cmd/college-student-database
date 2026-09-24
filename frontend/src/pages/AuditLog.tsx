@@ -33,6 +33,16 @@ export default function AuditLog() {
 
   useEffect(() => { setPage(1); }, [entity]);
 
+  const roleLabel = (role: string) => {
+    const map: Record<string, string> = {
+      admin: 'Администратор',
+      curator: 'Куратор',
+      user: 'Пользователь',
+      system: 'Система',
+    };
+    return map[role] || role || '-';
+  };
+
   const actionLabel = (action: string) => {
     const map: Record<string, string> = {
       create: 'Создание',
@@ -104,7 +114,7 @@ export default function AuditLog() {
                     <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Действие</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Сущность</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">ID</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Пользователь</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Роль исполнителя</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -126,7 +136,7 @@ export default function AuditLog() {
                       </td>
                       <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{entityLabel(log.entity || log.entityType || '')}</td>
                       <td className="px-4 py-3 text-gray-500 dark:text-gray-500 font-mono text-xs">{log.entityId || log.targetId || '-'}</td>
-                      <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{log.userEmail || log.userId || '-'}</td>
+                      <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{roleLabel(log.userId)}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -349,7 +349,6 @@ GitHub Actions (`main`):
 | `PUT/DELETE` | `/api/schedule/:id` | Обновление / удаление занятия |
 | `DELETE` | `/api/schedule?group=...` | Очистка расписания группы |
 | `GET` | `/api/marks/me` | Оценки текущего пользователя |
-| `GET` | `/api/students/me/marks` | Оценки текущего студента (алиас) |
 | `GET/POST` | `/api/students/:id/marks` | Оценки студента / выставление оценки |
 | `PUT/DELETE` | `/api/marks/:id` | Обновление / удаление оценки |
 | `GET` | `/api/admin/users` | Список пользователей с ролями и группами (роль `admin`) |

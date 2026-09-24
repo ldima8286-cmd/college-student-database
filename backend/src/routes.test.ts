@@ -295,9 +295,9 @@ describe('API Routes', () => {
     });
   });
 
-  describe('GET /api/students/me/marks', () => {
+  describe('GET /api/marks/me', () => {
     it('returns empty marks when student has no linked card', async () => {
-      const res = await request(app).get('/api/students/me/marks');
+      const res = await request(app).get('/api/marks/me');
       expect(res.status).toBe(200);
       expect(res.body.data).toEqual([]);
     });
