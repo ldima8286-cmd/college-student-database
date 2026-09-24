@@ -72,7 +72,7 @@ export const schedule = pgTable('schedule', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
-  check('schedule_day_check', sql`${t.dayOfWeek} >= 1 AND ${t.dayOfWeek} <= 7`),
+  check('schedule_day_check', sql`${t.dayOfWeek} >= 1 AND ${t.dayOfWeek} <= 6`),
   check('schedule_lesson_check', sql`${t.lessonNumber} >= 1 AND ${t.lessonNumber} <= 10`),
   index('idx_schedule_group_day').on(t.group, t.dayOfWeek, t.lessonNumber),
 ]);

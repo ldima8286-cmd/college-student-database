@@ -91,7 +91,7 @@ sqliteDb.exec(`
   CREATE TABLE IF NOT EXISTS schedule (
     id TEXT PRIMARY KEY,
     "group" TEXT NOT NULL,
-    dayOfWeek INTEGER NOT NULL CHECK(dayOfWeek >= 1 AND dayOfWeek <= 7),
+    dayOfWeek INTEGER NOT NULL CHECK(dayOfWeek >= 1 AND dayOfWeek <= 6),
     lessonNumber INTEGER NOT NULL CHECK(lessonNumber >= 1 AND lessonNumber <= 10),
     subject TEXT NOT NULL,
     teacher TEXT,
@@ -181,6 +181,28 @@ export async function ensureSchema(): Promise<void> {
   }
   if (!markCols.some((c: any) => c.name === 'date')) {
     sqliteDb.exec(`ALTER TABLE marks ADD COLUMN date TEXT`);
+  }
+  const scheduleSql = (sqliteDb.prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name='schedule'`).get() as any)?.sql ?? '';
+  if (scheduleSql.includes('dayOfWeek >= 1 AND dayOfWeek <= 7')) {
+    sqliteDb.pragma('foreign_keys = OFF');
+    sqliteDb.exec(`
+      CREATE TABLE schedule_new (
+        id TEXT PRIMARY KEY,
+        "group" TEXT NOT NULL,
+        dayOfWeek INTEGER NOT NULL CHECK(dayOfWeek >= 1 AND dayOfWeek <= 6),
+        lessonNumber INTEGER NOT NULL CHECK(lessonNumber >= 1 AND lessonNumber <= 10),
+        subject TEXT NOT NULL,
+        teacher TEXT,
+        room TEXT,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      );
+      INSERT INTO schedule_new (id, "group", dayOfWeek, lessonNumber, subject, teacher, room, createdAt, updatedAt)
+        SELECT id, "group", dayOfWeek, lessonNumber, subject, teacher, room, createdAt, updatedAt FROM schedule WHERE dayOfWeek <= 6;
+      DROP TABLE schedule;
+      ALTER TABLE schedule_new RENAME TO schedule;
+    `);
+    sqliteDb.pragma('foreign_keys = ON');
   }
   sqliteDb.exec(`
     CREATE TABLE IF NOT EXISTS attendance (
@@ -598,7 +620,7 @@ export async function getJournalSummaries(group: string, date: string): Promise<
   const studentRows = sqliteDb.prepare(`SELECT id FROM students WHERE "group" = ? AND status = 'approved'`).all(group) as any[];
   if (studentRows.length === 0) return [];
   const ph = studentRows.map(() => '?').join(',');
-  const lessons = sqliteDb.prepare(`SELECT id, lessonNumber, subject, teacher, room FROM schedule WHERE "group" = ? ORDER BY lessonNumber`).all(group) as any[];
+  const lessons = sqliteDb.prepare(`SELECT id, lessonNumber, subject, teacher, room FROM schedule WHERE "group" = ? AND dayOfWeek = ((strftime('%w', ?) + 6) % 7) + 1 ORDER BY lessonNumber`).all(group, date) as any[];
   return lessons.map((l) => {
     const marked = (sqliteDb.prepare(`SELECT COUNT(*) as c FROM marks WHERE scheduleId = ? AND date = ? AND studentId IN (${ph})`).get(l.id, date, ...studentRows.map((s) => s.id)) as any)?.c ?? 0;
     const attRows = sqliteDb.prepare(`SELECT status, COUNT(*) as c FROM attendance WHERE scheduleId = ? AND date = ? AND studentId IN (${ph}) GROUP BY status`).all(l.id, date, ...studentRows.map((s) => s.id)) as any[];

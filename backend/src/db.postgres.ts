@@ -68,7 +68,7 @@ export async function ensureSchema(): Promise<void> {
     CREATE TABLE IF NOT EXISTS schedule (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       "group" TEXT NOT NULL,
-      day_of_week INTEGER NOT NULL CHECK(day_of_week >= 1 AND day_of_week <= 7),
+      day_of_week INTEGER NOT NULL CHECK(day_of_week >= 1 AND day_of_week <= 6),
       lesson_number INTEGER NOT NULL CHECK(lesson_number >= 1 AND lesson_number <= 10),
       subject TEXT NOT NULL,
       teacher TEXT,
@@ -86,6 +86,9 @@ export async function ensureSchema(): Promise<void> {
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
     CREATE INDEX IF NOT EXISTS idx_schedule_group_day ON schedule("group", day_of_week, lesson_number);
+    ALTER TABLE schedule DROP CONSTRAINT IF EXISTS schedule_day_check;
+    ALTER TABLE schedule ADD CONSTRAINT schedule_day_check CHECK(day_of_week >= 1 AND day_of_week <= 6);
+    DELETE FROM schedule WHERE day_of_week > 6;
     CREATE INDEX IF NOT EXISTS idx_marks_student ON marks(student_id);
     CREATE INDEX IF NOT EXISTS idx_marks_subject ON marks(subject_id);
     ALTER TABLE marks DROP CONSTRAINT IF EXISTS marks_mark_check;
@@ -521,7 +524,7 @@ export async function getJournalSummaries(group: string, date: string): Promise<
   if (studentRows.length === 0) return [];
   const ids = studentRows.map((s) => s.id);
   const lessons = await client.unsafe<{ id: string; lesson_number: number; subject: string; teacher: string | null; room: string | null }[]>(
-    `SELECT id, lesson_number, subject, teacher, room FROM schedule WHERE "group" = $1 ORDER BY lesson_number`, [group]
+    `SELECT id, lesson_number, subject, teacher, room FROM schedule WHERE "group" = $1 AND day_of_week = ((EXTRACT(DOW FROM $2::date)::int + 6) % 7) + 1 ORDER BY lesson_number`, [group, date]
   );
   const result: JournalSummaryLesson[] = [];
   for (const l of lessons) {

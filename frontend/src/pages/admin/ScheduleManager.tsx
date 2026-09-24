@@ -4,7 +4,7 @@ import { getSchedule, createScheduleEntry, updateScheduleEntry, deleteScheduleEn
 import { ScheduleEntry, Subject } from '../../types';
 import { toast } from 'react-hot-toast';
 
-const DAY_NAMES = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+const DAY_NAMES = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
 const LESSONS = Array.from({ length: 10 }, (_, i) => i + 1);
 
 interface CellEditor {
@@ -249,7 +249,7 @@ export default function ScheduleManager() {
         )}
       </div>
       <p className="text-xs text-gray-500 mt-3">
-        Нажмите на клетку, чтобы добавить или изменить занятие. Дни недели: Пн–Вс, до 10 уроков.
+        Нажмите на клетку, чтобы добавить или изменить занятие. Учебная неделя: Пн–Сб, до 10 уроков.
       </p>
     </div>
   );

@@ -71,7 +71,7 @@ export const schedule = sqliteTable('schedule', {
   createdAt: text('createdAt').notNull(),
   updatedAt: text('updatedAt').notNull(),
 }, (t) => [
-  check('schedule_day_check', sql`${t.dayOfWeek} >= 1 AND ${t.dayOfWeek} <= 7`),
+  check('schedule_day_check', sql`${t.dayOfWeek} >= 1 AND ${t.dayOfWeek} <= 6`),
   check('schedule_lesson_check', sql`${t.lessonNumber} >= 1 AND ${t.lessonNumber} <= 10`),
   index('idx_schedule_group_day').on(t.group, t.dayOfWeek, t.lessonNumber),
 ]);

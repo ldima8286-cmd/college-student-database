@@ -113,7 +113,7 @@ export const subjectSchema = z.object({
 
 export const scheduleCreateSchema = z.object({
   group: z.string().min(1, 'Укажите группу').max(50),
-  dayOfWeek: z.number().int().min(1, 'День недели 1-7').max(7, 'День недели 1-7'),
+  dayOfWeek: z.number().int().min(1, 'День недели 1-6').max(6, 'День недели 1-6'),
   lessonNumber: z.number().int().min(1, 'Урок 1-10').max(10, 'Урок 1-10'),
   subject: z.string().min(1, 'Укажите предмет').max(100),
   teacher: z.string().max(100).nullable().optional(),

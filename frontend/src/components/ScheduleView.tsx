@@ -1,7 +1,7 @@
 import { ScheduleEntry } from '../types';
 import { CalendarDays } from 'lucide-react';
 
-const DAY_NAMES = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+const DAY_NAMES = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
 const LESSONS = Array.from({ length: 10 }, (_, i) => i + 1);
 
 interface Props {
