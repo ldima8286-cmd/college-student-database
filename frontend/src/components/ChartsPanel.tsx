@@ -48,7 +48,7 @@ export default memo(function ChartsPanel({ stats, view = 'course' }: Props) {
               className="w-full rounded-t-lg bg-gradient-to-t from-primary-600 to-primary-400 transition-all duration-300"
               style={{ height: `${Math.min(100, (c.avgPerformance / maxPerf) * 100)}%` }}
             />
-            <span className="text-xs text-gray-500 dark:text-gray-400 truncate w-full text-center" title={c.label}>{c.label}</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400 leading-tight w-full text-center break-words" title={c.label}>{c.label}</span>
           </div>
         ))}
       </div>
@@ -68,7 +68,7 @@ export default memo(function ChartsPanel({ stats, view = 'course' }: Props) {
               className="w-full rounded-t-lg bg-gradient-to-t from-emerald-600 to-emerald-400 transition-all duration-300"
               style={{ height: `${Math.min(100, (c.avgAttendance / maxAtt) * 100)}%` }}
             />
-            <span className="text-xs text-gray-500 dark:text-gray-400 truncate w-full text-center" title={c.label}>{c.label}</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400 leading-tight w-full text-center break-words" title={c.label}>{c.label}</span>
           </div>
         ))}
       </div>
@@ -90,7 +90,7 @@ export default memo(function ChartsPanel({ stats, view = 'course' }: Props) {
                 className="w-full rounded-t-lg bg-gradient-to-t from-amber-600 to-amber-400 transition-all duration-300"
                 style={{ height: `${Math.min(100, (c.count / maxCount) * 100)}%` }}
               />
-              <span className="text-xs text-gray-500 dark:text-gray-400 truncate w-full text-center" title={c.label}>{c.label}</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400 leading-tight w-full text-center break-words" title={c.label}>{c.label}</span>
             </div>
           ))}
         </div>
