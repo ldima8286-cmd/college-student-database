@@ -266,18 +266,21 @@ export default function ScheduleManager() {
             </div>
             <div className="sm:col-span-2">
               <label className="label">Предмет *</label>
-              <input
-                type="text"
+              <select
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
                 className="input"
-                list="cell-subjects"
-                maxLength={100}
-                placeholder="Введите или выберите предмет"
-              />
-              <datalist id="cell-subjects">
-                {subjects.map((s) => <option key={s.id} value={s.name} />)}
-              </datalist>
+              >
+                <option value="">Выберите предмет…</option>
+                {[...subjects]
+                  .sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+                  .map((s) => (
+                    <option key={s.id} value={s.name}>{s.name}</option>
+                  ))}
+                {subject && !subjects.some((s) => s.name === subject) && (
+                  <option value={subject}>{subject}</option>
+                )}
+              </select>
             </div>
             <div>
               <label className="label">Преподаватель</label>
@@ -363,7 +366,10 @@ export default function ScheduleManager() {
                     const editing = isEditing(day, lesson);
                     return (
                       <td key={`${lesson}-${day}`} className={`px-1 py-1 border border-gray-200 dark:border-gray-700 align-top ${editing ? 'bg-primary-50 dark:bg-primary-900/20' : ''}`}>
-                        {visible.map((e) => (
+                        {(() => {
+                        const upper = visible.filter((e) => e.week !== 'lower');
+                        const lower = visible.filter((e) => e.week === 'lower');
+                        const renderButton = (e: ScheduleEntry) => (
                           <button key={e.id} onClick={() => openEntry(e)} className="w-full text-left text-xs leading-snug group block mb-0.5">
                             <p className="font-medium text-gray-900 dark:text-white group-hover:text-primary-600 flex items-start justify-between gap-1">
                               <span>{e.subject}</span>
@@ -372,7 +378,17 @@ export default function ScheduleManager() {
                             {e.teacher && <p className="text-gray-500 dark:text-gray-400">{e.teacher}</p>}
                             {e.room && <p className="text-gray-500 dark:text-gray-400">ауд. {e.room}</p>}
                           </button>
-                        ))}
+                        );
+                        return (
+                          <>
+                            {upper.map(renderButton)}
+                            {upper.length > 0 && lower.length > 0 && (
+                              <div className="my-1 border-t border-dashed border-gray-300 dark:border-gray-600" title="Разделение верхняя/нижняя неделя" />
+                            )}
+                            {lower.map(renderButton)}
+                          </>
+                        );
+                      })()}
                         {availableWeeks(day, lesson).length > 0 && (
                           <button
                             onClick={() => openNew(day, lesson)}

@@ -4,6 +4,7 @@ import { getAuditLogs, clearAuditLogs } from '../api';
 import { toast } from 'react-hot-toast';
 import Pagination from '../components/Pagination';
 import AdminNav from '../components/AdminNav';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 export default function AuditLog() {
   const [logs, setLogs] = useState<any[]>([]);
@@ -34,10 +35,10 @@ export default function AuditLog() {
   useEffect(() => { setPage(1); }, [entity]);
 
   const [clearing, setClearing] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const handleClear = async () => {
     if (total === 0) return;
-    if (!window.confirm('Очистить журнал аудита полностью? Это действие удалит все записи и его нельзя отменить.')) return;
     setClearing(true);
     try {
       const deleted = await clearAuditLogs();
@@ -46,6 +47,7 @@ export default function AuditLog() {
       setTotal(0);
       setTotalPages(1);
       setPage(1);
+      setShowClearConfirm(false);
     } catch (err: any) {
       toast.error(err.message);
     } finally {
@@ -165,7 +167,7 @@ export default function AuditLog() {
             <RefreshCw className="w-4 h-4" /> Обновить
           </button>
           <button
-            onClick={handleClear}
+            onClick={() => setShowClearConfirm(true)}
             disabled={clearing || total === 0}
             className="btn btn-danger text-sm flex items-center gap-1"
             title="Удалить все записи журнала аудита"
@@ -237,6 +239,15 @@ export default function AuditLog() {
 
         <Pagination page={page} totalPages={totalPages} total={total} onPageChange={setPage} />
       </main>
+      <ConfirmDialog
+        isOpen={showClearConfirm}
+        title="Очистить журнал аудита"
+        message="Очистить журнал аудита полностью? Это действие удалит все записи и его нельзя отменить."
+        confirmText="Очистить"
+        disabled={clearing}
+        onConfirm={handleClear}
+        onCancel={() => setShowClearConfirm(false)}
+      />
     </div>
   );
 }

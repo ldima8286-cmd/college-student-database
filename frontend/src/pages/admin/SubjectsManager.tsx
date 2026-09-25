@@ -4,6 +4,9 @@ import { listSubjects, createSubject, deleteSubject } from '../../api';
 import { Subject } from '../../types';
 import { toast } from 'react-hot-toast';
 import AdminNav from '../../components/AdminNav';
+import ConfirmDialog from '../../components/ConfirmDialog';
+
+const sanitizeSubject = (input: string) => input.replace(/[^\p{L}\s'’.\-\u2013\u2014]/gu, '').replace(/\s{2,}/g, ' ');
 
 export default function SubjectsManager() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -11,6 +14,8 @@ export default function SubjectsManager() {
   const [name, setName] = useState('');
   const [creating, setCreating] = useState(false);
   const [search, setSearch] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<Subject | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = async () => {
     try {
@@ -43,13 +48,16 @@ export default function SubjectsManager() {
   };
 
   const handleDelete = async (s: Subject) => {
-    if (!window.confirm(`Удалить предмет «${s.name}»? Оценки по нему будут недоступны.`)) return;
+    setDeleting(true);
     try {
       await deleteSubject(s.id);
       toast.success(`Предмет "${s.name}" удалён`);
+      setDeleteTarget(null);
       await load();
     } catch (err: any) {
       toast.error(err.message);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -74,7 +82,7 @@ export default function SubjectsManager() {
             <input
               type="text"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => setName(sanitizeSubject(e.target.value))}
               className="input flex-1"
               placeholder="Название предмета, например «Математика»"
               maxLength={100}
@@ -122,7 +130,7 @@ export default function SubjectsManager() {
                     <span className="text-xs text-gray-400 whitespace-nowrap">
                       {new Date(s.createdAt).toLocaleDateString('ru-RU')}
                     </span>
-                    <button onClick={() => handleDelete(s)} className="btn btn-ghost text-xs text-red-600 flex items-center gap-1" title="Удалить">
+                    <button onClick={() => setDeleteTarget(s)} className="btn btn-ghost text-xs text-red-600 flex items-center gap-1" title="Удалить">
                       <Trash2 className="w-3.5 h-3.5" /> Удалить
                     </button>
                   </li>
@@ -135,6 +143,19 @@ export default function SubjectsManager() {
           )}
         </div>
       </main>
+      <ConfirmDialog
+        isOpen={deleteTarget !== null}
+        title="Удалить предмет"
+        message={
+          <>
+            Удалить предмет «{deleteTarget?.name}»? Оценки по нему будут недоступны.
+          </>
+        }
+        confirmText="Удалить"
+        disabled={deleting}
+        onConfirm={() => deleteTarget && handleDelete(deleteTarget)}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

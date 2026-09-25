@@ -97,16 +97,29 @@ export default function ScheduleView({ entries, group, semesterStart }: Props) {
                   const cell = cellEntries(day, lesson);
                   return (
                     <td key={`${lesson}-${day}`} className="px-2 py-1.5 border border-gray-200 dark:border-gray-700 align-top">
-                      {cell.map((e) => (
-                        <div key={e.id} className="text-xs leading-snug mb-0.5">
-                          <p className="font-medium text-gray-900 dark:text-white flex items-start justify-between gap-1">
-                            <span>{e.subject}</span>
-                            <WeekBadge week={e.week} />
-                          </p>
-                          {e.teacher && <p className="text-gray-500 dark:text-gray-400">{e.teacher}</p>}
-                          {e.room && <p className="text-gray-500 dark:text-gray-400">ауд. {e.room}</p>}
-                        </div>
-                      ))}
+                      {(() => {
+                        const upper = cell.filter((e) => e.week !== 'lower');
+                        const lower = cell.filter((e) => e.week === 'lower');
+                        const renderItem = (e: ScheduleEntry) => (
+                          <div key={e.id} className="text-xs leading-snug mb-0.5">
+                            <p className="font-medium text-gray-900 dark:text-white flex items-start justify-between gap-1">
+                              <span>{e.subject}</span>
+                              <WeekBadge week={e.week} />
+                            </p>
+                            {e.teacher && <p className="text-gray-500 dark:text-gray-400">{e.teacher}</p>}
+                            {e.room && <p className="text-gray-500 dark:text-gray-400">ауд. {e.room}</p>}
+                          </div>
+                        );
+                        return (
+                          <>
+                            {upper.map(renderItem)}
+                            {upper.length > 0 && lower.length > 0 && (
+                              <div className="my-1 border-t border-dashed border-gray-300 dark:border-gray-600" title="Разделение верхняя/нижняя неделя" />
+                            )}
+                            {lower.map(renderItem)}
+                          </>
+                        );
+                      })()}
                     </td>
                   );
                 })}
