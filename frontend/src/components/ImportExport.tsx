@@ -251,9 +251,9 @@ export default function ImportExport({ onImportComplete }: Props) {
       {preview && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700">
-              <div>
-                <h3 className="text-base font-semibold text-gray-900 dark:text-white">Предпросмотр импорта: {fileName}</h3>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700 gap-3 min-w-0">
+              <div className="min-w-0">
+                <h3 className="text-base font-semibold text-gray-900 dark:text-white truncate">Предпросмотр импорта: {fileName}</h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                   Готово к импорту: {validCount} · Дубликаты: {duplicateCount} · Ошибки: {errorCount}
                 </p>
@@ -267,6 +267,7 @@ export default function ImportExport({ onImportComplete }: Props) {
               <button onClick={toggleAll} className="text-sm text-primary-600 hover:text-primary-700 mb-2">
                 {preview.some((r) => !r.selected && r.student && !r.duplicate && !r.error) ? 'Выбрать все корректные' : 'Снять выбор'}
               </button>
+              <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-xs uppercase text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
@@ -317,13 +318,14 @@ export default function ImportExport({ onImportComplete }: Props) {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
 
-            <div className="px-5 py-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3">
+            <div className="px-5 py-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3 flex-wrap">
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 Выбрано: <span className="font-semibold text-gray-900 dark:text-white">{selectedCount}</span>
               </p>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <button onClick={() => setPreview(null)} className="btn btn-secondary text-sm">Отмена</button>
                 <button
                   onClick={commitImport}

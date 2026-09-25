@@ -78,7 +78,7 @@ export default function SubjectsManager() {
           <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-3 flex items-center gap-2">
             <BookOpen className="w-4 h-4" /> Новый предмет
           </h3>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <input
               type="text"
               value={name}
@@ -87,7 +87,7 @@ export default function SubjectsManager() {
               placeholder="Название предмета, например «Математика»"
               maxLength={100}
             />
-            <button type="submit" disabled={creating || !name.trim()} className="btn btn-primary flex items-center gap-1">
+            <button type="submit" disabled={creating || !name.trim()} className="btn btn-primary flex items-center gap-1 sm:w-auto justify-center">
               {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
               Добавить
             </button>
@@ -125,8 +125,8 @@ export default function SubjectsManager() {
             <>
               <ul className="divide-y divide-gray-100 dark:divide-gray-800">
                 {filtered.map((s) => (
-                  <li key={s.id} className="py-2.5 flex items-center gap-3">
-                    <span className="flex-1 text-sm font-medium text-gray-900 dark:text-white">{s.name}</span>
+                  <li key={s.id} className="py-2.5 flex items-center gap-3 flex-wrap">
+                    <span className="flex-1 text-sm font-medium text-gray-900 dark:text-white min-w-[8rem]">{s.name}</span>
                     <span className="text-xs text-gray-400 whitespace-nowrap">
                       {new Date(s.createdAt).toLocaleDateString('ru-RU')}
                     </span>

@@ -20,6 +20,14 @@ import BatchActions from '../components/BatchActions';
 import Pagination from '../components/Pagination';
 import InstallPWA from '../components/InstallPWA';
 
+const NAV_LINKS = [
+  { to: '/admin/journal', label: 'Журнал', icon: ClipboardList },
+  { to: '/admin/schedule', label: 'Расписание', icon: Clock },
+  { to: '/admin/subjects', label: 'Предметы', icon: BookOpen },
+  { to: '/admin/users', label: 'Пользователи', icon: Users },
+  { to: '/admin/audit', label: 'Аудит', icon: FileText },
+];
+
 export default function AdminPanel() {
   const [students, setStudents] = useState<Student[]>([]);
   const [total, setTotal] = useState(0);
@@ -218,40 +226,43 @@ export default function AdminPanel() {
 
       <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <Shield className="w-6 h-6 text-primary-600" />
-              <h1 className="text-lg font-bold text-gray-900 dark:text-white">Админ-панель</h1>
+          <div className="flex items-center justify-between gap-2 min-h-16 py-2">
+            <div className="flex items-center gap-3 min-w-0">
+              <Shield className="w-6 h-6 text-primary-600 flex-shrink-0" />
+              <h1 className="text-lg font-bold text-gray-900 dark:text-white truncate">Админ-панель</h1>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="hidden md:flex items-center gap-1">
+              {NAV_LINKS.map((l) => (
+                <Link key={l.to} to={l.to} className="btn btn-ghost text-sm flex items-center gap-1 whitespace-nowrap">
+                  <l.icon className="w-4 h-4" />
+                  <span className="hidden lg:inline">{l.label}</span>
+                </Link>
+              ))}
+            </div>
+            <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0 flex-wrap">
               <ThemeToggle />
               <InstallPWA />
-              <Link to="/admin/audit" className="btn btn-ghost text-sm flex items-center gap-1">
-                <FileText className="w-4 h-4" /> <span className="hidden sm:inline">Аудит</span>
-              </Link>
-              <Link to="/admin/schedule" className="btn btn-ghost text-sm flex items-center gap-1">
-                <Clock className="w-4 h-4" /> <span className="hidden sm:inline">Расписание</span>
-              </Link>
-              <Link to="/admin/journal" className="btn btn-ghost text-sm flex items-center gap-1">
-                <ClipboardList className="w-4 h-4" /> <span className="hidden sm:inline">Журнал</span>
-              </Link>
-              <Link to="/admin/subjects" className="btn btn-ghost text-sm flex items-center gap-1">
-                <BookOpen className="w-4 h-4" /> <span className="hidden sm:inline">Предметы</span>
-              </Link>
-              <Link to="/admin/users" className="btn btn-ghost text-sm flex items-center gap-1">
-                <Users className="w-4 h-4" /> <span className="hidden sm:inline">Пользователи</span>
-              </Link>
-              <Link to="/admin/profile" className="btn btn-ghost text-sm flex items-center gap-1">
+              <Link to="/admin/profile" className="btn btn-ghost text-sm flex items-center gap-1" title="Профиль">
                 <User className="w-4 h-4" />
               </Link>
               <Link to="/" className="btn btn-ghost text-sm flex items-center gap-1">
-                <Home className="w-4 h-4" /> <span className="hidden sm:inline">Сайт</span>
+                <Home className="w-4 h-4" />
+                <span className="hidden sm:inline">Сайт</span>
               </Link>
               <button onClick={handleLogout} className="btn btn-ghost text-sm flex items-center gap-1 text-red-600">
-                <LogOut className="w-4 h-4" /> <span className="hidden sm:inline">Выйти</span>
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:inline">Выйти</span>
               </button>
             </div>
           </div>
+          <nav className="md:hidden flex items-center gap-1 overflow-x-auto pb-2 -mx-4 px-4">
+            {NAV_LINKS.map((l) => (
+              <Link key={l.to} to={l.to} className="btn btn-ghost text-sm flex items-center gap-1 whitespace-nowrap">
+                <l.icon className="w-4 h-4" />
+                <span>{l.label}</span>
+              </Link>
+            ))}
+          </nav>
         </div>
       </header>
 

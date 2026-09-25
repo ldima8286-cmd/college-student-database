@@ -305,7 +305,7 @@ export default function ScheduleManager() {
               />
             </div>
           </div>
-          <div className="mt-4 flex gap-2">
+          <div className="mt-4 flex gap-2 flex-wrap">
             <button onClick={handleSaveCell} disabled={saving} className="btn btn-primary flex items-center gap-1">
               <Save className="w-4 h-4" /> {editor.entry ? 'Сохранить' : 'Добавить'}
             </button>

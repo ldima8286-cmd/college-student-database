@@ -33,18 +33,18 @@ export default function PublicShowcase() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
       <header className="bg-gradient-to-r from-primary-600 to-primary-500 text-white sticky top-0 z-40 shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <GraduationCap className="w-7 h-7" />
-              <h1 className="text-lg sm:text-xl font-bold">База данных учащихся</h1>
+          <div className="flex items-center justify-between gap-2 min-h-16 py-2">
+            <div className="flex items-center gap-3 min-w-0">
+              <GraduationCap className="w-7 h-7 flex-shrink-0" />
+              <h1 className="text-lg sm:text-xl font-bold truncate">База данных учащихся</h1>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-shrink-0">
               <ThemeToggle />
               <Link to="/login" className="btn bg-white/15 hover:bg-white/25 text-white text-sm flex items-center gap-1">
-                <LogIn className="w-4 h-4" /> Войти
+                <LogIn className="w-4 h-4" /> <span className="hidden sm:inline">Войти</span>
               </Link>
               <Link to="/register" className="btn bg-white text-primary-700 hover:bg-gray-100 text-sm flex items-center gap-1">
-                <UserPlus className="w-4 h-4" /> Регистрация
+                <UserPlus className="w-4 h-4" /> <span className="hidden sm:inline">Регистрация</span>
               </Link>
             </div>
           </div>

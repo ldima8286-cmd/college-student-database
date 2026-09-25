@@ -112,13 +112,13 @@ export default function Dashboard() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
       <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <GraduationCap className="w-7 h-7 text-primary-600" />
-              <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
+          <div className="flex items-center justify-between gap-2 min-h-16 py-2">
+            <div className="flex items-center gap-3 min-w-0">
+              <GraduationCap className="w-7 h-7 text-primary-600 flex-shrink-0" />
+              <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">
                 База данных учащихся
               </h1>
-              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+              <span className={`hidden sm:inline-flex px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${
                 isUserAdmin
                   ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
                   : isUserCurator
@@ -128,11 +128,11 @@ export default function Dashboard() {
                 {isUserAdmin ? 'Админ' : isUserCurator ? 'Куратор' : 'Студент'}
               </span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
               <ThemeToggle />
               <InstallPWA />
               {(isUserAdmin || isUserCurator) && (
-                <Link to="/admin/profile" className="btn btn-ghost text-sm flex items-center gap-1">
+                <Link to="/admin/profile" className="btn btn-ghost text-sm flex items-center gap-1" title="Профиль">
                   {avatar ? (
                     <img src={avatar} alt="Аватар" className="w-7 h-7 rounded-full object-cover" />
                   ) : (
