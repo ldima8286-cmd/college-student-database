@@ -398,6 +398,9 @@ export async function getStats() {
   const courseStats = sqliteDb.prepare(
     "SELECT course, ROUND(AVG(performance), 2) as avgPerformance, ROUND(AVG(attendance)) as avgAttendance, COUNT(*) as count FROM students WHERE status = 'approved' GROUP BY course"
   ).all() as any[];
+  const groupStats = sqliteDb.prepare(
+    "SELECT \"group\", ROUND(AVG(performance), 2) as avgPerformance, ROUND(AVG(attendance)) as avgAttendance, COUNT(*) as count FROM students WHERE status = 'approved' GROUP BY \"group\""
+  ).all() as any[];
   const specRows = sqliteDb.prepare("SELECT specialty, COUNT(*) as count FROM students WHERE status = 'approved' GROUP BY specialty").all() as any[];
   const bySpecialty: Record<string, number> = {};
   for (const r of specRows) bySpecialty[r.specialty] = r.count;
@@ -405,7 +408,7 @@ export async function getStats() {
     total, withDebt,
     avgAttendance: Math.round(avgs?.a ?? 0),
     avgPerformance: Number((avgs?.p ?? 0).toFixed(2)),
-    byCourse, byCourseStats: courseStats, bySpecialty,
+    byCourse, byCourseStats: courseStats, byGroupStats: groupStats, bySpecialty,
   };
 }
 

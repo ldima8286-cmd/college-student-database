@@ -134,7 +134,7 @@ interface DbModule {
   getStudentsByIds?(ids: string[]): Promise<Student[]>;
   deleteStudentsByIds?(ids: string[]): Promise<number>;
   updateStudentsByIds?(ids: string[], data: Partial<Omit<Student, 'id' | 'createdAt' | 'updatedAt'>>): Promise<number>;
-  getStats(): Promise<{ total: number; withDebt: number; avgAttendance: number; avgPerformance: number; byCourse: Record<number, number>; byCourseStats: { course: number; count: number; avgPerformance: number; avgAttendance: number }[]; bySpecialty: Record<string, number> }>;
+  getStats(): Promise<{ total: number; withDebt: number; avgAttendance: number; avgPerformance: number; byCourse: Record<number, number>; byCourseStats: { course: number; count: number; avgPerformance: number; avgAttendance: number }[]; byGroupStats: { group: string; count: number; avgPerformance: number; avgAttendance: number }[]; bySpecialty: Record<string, number> }>;
   getStudentsBySpecialty(): Promise<{ specialty: string; count: number; avgPerformance: number; avgAttendance: number }[]>;
   getStudentsByCourse(): Promise<{ course: number; count: number; withDebt: number }[]>;
   getRecentStudents(limit?: number): Promise<Student[]>;

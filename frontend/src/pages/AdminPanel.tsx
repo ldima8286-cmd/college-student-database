@@ -38,6 +38,7 @@ export default function AdminPanel() {
   const [pendingStudents, setPendingStudents] = useState<Student[]>([]);
   const [pendingLoading, setPendingLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [statDim, setStatDim] = useState<'course' | 'group'>('course');
   const [stats, setStats] = useState<any>(null);
   const [analytics, setAnalytics] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -336,7 +337,24 @@ export default function AdminPanel() {
             </div>
           </div>
         )}
-        <ChartsPanel stats={stats} />
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Графики:</span>
+          <div className="flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden">
+            <button
+              onClick={() => setStatDim('course')}
+              className={`px-3 py-1.5 text-sm font-medium transition-colors ${statDim === 'course' ? 'bg-primary-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}
+            >
+              По курсам
+            </button>
+            <button
+              onClick={() => setStatDim('group')}
+              className={`px-3 py-1.5 text-sm font-medium transition-colors ${statDim === 'group' ? 'bg-primary-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}
+            >
+              По группам
+            </button>
+          </div>
+        </div>
+        <ChartsPanel stats={stats} view={statDim} />
 
         {/* Actions bar */}
         <div className="flex flex-col sm:flex-row flex-wrap gap-4 items-start sm:items-center justify-between mb-6">

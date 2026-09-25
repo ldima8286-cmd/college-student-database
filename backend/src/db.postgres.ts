@@ -266,6 +266,11 @@ export async function getStats() {
     avgPerformance: sql<number>`ROUND(AVG(${students.performance}), 2)`,
     avgAttendance: sql<number>`ROUND(AVG(${students.attendance}))`,
   }).from(students).where(approved).groupBy(students.course);
+  const byGroupStats = await db.select({
+    group: students.group, count: count(),
+    avgPerformance: sql<number>`ROUND(AVG(${students.performance}), 2)`,
+    avgAttendance: sql<number>`ROUND(AVG(${students.attendance}))`,
+  }).from(students).where(approved).groupBy(students.group);
   const specialtyRows = await db.select({ specialty: students.specialty, count: count() }).from(students).where(approved).groupBy(students.specialty);
   const bySpecialty: Record<string, number> = {};
   for (const row of specialtyRows) bySpecialty[row.specialty] = Number(row.count);
@@ -273,7 +278,7 @@ export async function getStats() {
     total, withDebt,
     avgAttendance: Math.round(Number(avgResult[0]?.avgAttendance ?? 0)),
     avgPerformance: Number(Number(avgResult[0]?.avgPerformance ?? 0).toFixed(2)),
-    byCourse, byCourseStats, bySpecialty,
+    byCourse, byCourseStats, byGroupStats, bySpecialty,
   };
 }
 
