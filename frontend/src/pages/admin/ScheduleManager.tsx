@@ -7,7 +7,7 @@ import { toast } from 'react-hot-toast';
 import AdminNav from '../../components/AdminNav';
 
 const DAY_NAMES = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
-const LESSONS = Array.from({ length: 10 }, (_, i) => i + 1);
+const LESSONS = Array.from({ length: 5 }, (_, i) => i + 1);
 
 interface CellEditor {
   group: string;
@@ -423,7 +423,7 @@ export default function ScheduleManager() {
         )}
       </div>
       <p className="text-xs text-gray-500 mt-3">
-        Нажмите на клетку, чтобы изменить занятие. В одной клетке можно задать разные предметы для верхней и нижней недели. Учебная неделя: Пн–Сб, до 10 пар.
+        Нажмите на клетку, чтобы изменить занятие. В одной клетке можно задать разные предметы для верхней и нижней недели. Учебная неделя: Пн–Сб, до 5 пар.
       </p>
       </main>
     </div>

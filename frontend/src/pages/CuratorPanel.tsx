@@ -1,13 +1,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { UserRound, Users, Phone, Mail, AlertTriangle, Activity, GraduationCap, ClipboardList, LogOut, CalendarDays } from 'lucide-react';
-import { getStudents, getMe, getSchedule, getSettings, logout } from '../api';
+import { UserRound, Users, Phone, Mail, AlertTriangle, Activity, GraduationCap, ClipboardList, CalendarDays } from 'lucide-react';
+import { getStudents, getMe, getSchedule, getSettings } from '../api';
 import { Student, ScheduleEntry } from '../types';
 import { toast } from 'react-hot-toast';
 import MarksEditor from '../components/MarksEditor';
 import ScheduleView from '../components/ScheduleView';
 import Pagination from '../components/Pagination';
-import ThemeToggle from '../components/ThemeToggle';
 
 type CuratorTab = 'students' | 'schedule';
 
@@ -23,12 +22,6 @@ export default function CuratorPanel() {
   const [total, setTotal] = useState(0);
   const [limit] = useState(50);
   const [tab, setTab] = useState<CuratorTab>('students');
-
-  const handleLogout = async () => {
-    await logout();
-    toast.success('Вы вышли');
-    window.location.href = '/login';
-  };
 
   useEffect(() => {
     getMe().then((u) => setGroup(u?.group ?? null)).catch(() => {});
@@ -52,7 +45,7 @@ export default function CuratorPanel() {
     }
   }, [page, limit]);
 
-  useEffect(() => { loadStudents(); }, [loadStudents]);;
+  useEffect(() => { loadStudents(); }, [loadStudents]);
 
   const loadSchedule = useCallback(async () => {
     try {
@@ -91,10 +84,6 @@ export default function CuratorPanel() {
             <ClipboardList className="w-4 h-4" /> Журнал
           </Link>
           <button onClick={() => { if (page !== 1) setPage(1); else { loadStudents(); loadSchedule(); } }} className="btn btn-secondary text-sm">Обновить</button>
-          <ThemeToggle />
-          <button onClick={handleLogout} className="btn btn-ghost text-sm flex items-center gap-1 text-red-600">
-            <LogOut className="w-4 h-4" /> Выйти
-          </button>
         </div>
       </div>
 
@@ -148,7 +137,7 @@ export default function CuratorPanel() {
         </div>
 
         <div className="lg:col-span-2 space-y-6">
-          {selected && (
+          {selected ? (
             <>
               <div className="card">
                 <div className="flex items-start justify-between gap-3 mb-4">
@@ -168,12 +157,12 @@ export default function CuratorPanel() {
                   <div className="flex items-center gap-2">
                     <Activity className="w-4 h-4 text-gray-400" />
                     <span className="text-gray-500">Посещаемость:</span>
-                    <span className="font-medium">{selected.attendance}%</span>
+                    <span className="font-medium">{Number(selected.attendance ?? 0)}%</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <GraduationCap className="w-4 h-4 text-gray-400" />
                     <span className="text-gray-500">Успеваемость:</span>
-                    <span className="font-medium">{selected.performance.toFixed(1)}</span>
+                    <span className="font-medium">{Number(selected.performance ?? 0).toFixed(1)}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Mail className="w-4 h-4 text-gray-400" />
@@ -197,6 +186,11 @@ export default function CuratorPanel() {
 
               <MarksEditor studentId={selected.id} studentName={selected.fullName} />
             </>
+          ) : (
+            <div className="card text-center py-12">
+              <Users className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" />
+              <p className="text-gray-500">Выберите студента из списка слева, чтобы увидеть подробности и оценки.</p>
+            </div>
           )}
         </div>
       </div>

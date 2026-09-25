@@ -4,7 +4,7 @@ import { CalendarDays } from 'lucide-react';
 import { WEEK_LABELS, WEEK_SHORT, weekOfDate } from '../utils/weeks';
 
 const DAY_NAMES = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
-const LESSONS = Array.from({ length: 10 }, (_, i) => i + 1);
+const LESSONS = Array.from({ length: 5 }, (_, i) => i + 1);
 
 interface Props {
   entries: ScheduleEntry[];

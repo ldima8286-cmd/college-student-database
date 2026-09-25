@@ -17,7 +17,6 @@ const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const ScheduleManager = lazy(() => import('./pages/admin/ScheduleManager'));
 const SubjectsManager = lazy(() => import('./pages/admin/SubjectsManager'));
 const UsersManager = lazy(() => import('./pages/admin/UsersManager'));
-const CuratorPanel = lazy(() => import('./pages/CuratorPanel'));
 const StudentDiary = lazy(() => import('./pages/StudentDiary'));
 const Journal = lazy(() => import('./pages/Journal'));
 
@@ -83,7 +82,7 @@ function AppRoutes() {
             <ProtectedRoute role="user"><StudentDiary /></ProtectedRoute>
           } />
           <Route path="/curator" element={
-            <ProtectedRoute role="curator"><CuratorPanel /></ProtectedRoute>
+            <ProtectedRoute role="curator"><Navigate to="/" replace /></ProtectedRoute>
           } />
           <Route path="/curator/journal" element={
             <ProtectedRoute role="curator"><Journal /></ProtectedRoute>

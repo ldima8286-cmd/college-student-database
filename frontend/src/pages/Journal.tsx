@@ -138,7 +138,7 @@ export default function Journal() {
       {isAdmin() && <AdminNav />}
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {isCurator() && (
-          <Link to="/curator" className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 mb-4">
+          <Link to="/" className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 mb-4">
             <ArrowLeft className="w-3.5 h-3.5" /> К панели куратора
           </Link>
         )}
