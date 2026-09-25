@@ -284,11 +284,25 @@ export default function ScheduleManager() {
             </div>
             <div>
               <label className="label">Преподаватель</label>
-              <input type="text" value={teacher} onChange={(e) => setTeacher(e.target.value)} className="input" maxLength={100} />
+              <input
+                type="text"
+                value={teacher}
+                onChange={(e) => setTeacher(e.target.value.replace(/[^\p{L}\s'’.\-\u2013\u2014]/gu, ''))}
+                className="input"
+                maxLength={100}
+                placeholder="Иванова И.И."
+              />
             </div>
             <div>
               <label className="label">Аудитория</label>
-              <input type="text" value={room} onChange={(e) => setRoom(e.target.value)} className="input" maxLength={50} />
+              <input
+                type="text"
+                value={room}
+                onChange={(e) => setRoom(e.target.value.replace(/[^\d\s\-]/g, ''))}
+                className="input"
+                maxLength={50}
+                placeholder="например, 101"
+              />
             </div>
           </div>
           <div className="mt-4 flex gap-2">
