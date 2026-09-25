@@ -40,7 +40,7 @@ export default memo(function ChartsPanel({ stats, view = 'course' }: Props) {
       <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-600 dark:text-gray-300 mb-4">
         <TrendingUp className="w-4 h-4 text-primary-600" /> Средняя успеваемость {dim}
       </h4>
-      <div className="flex items-end gap-3 h-40">
+      <div className="flex items-end gap-3 h-52">
         {items.map((c) => (
           <div key={c.key} className="flex-1 flex flex-col items-center gap-1 h-full justify-end min-w-0">
             <span className="text-xs font-bold text-primary-700 dark:text-primary-300">{c.avgPerformance.toFixed(1)}</span>
@@ -60,7 +60,7 @@ export default memo(function ChartsPanel({ stats, view = 'course' }: Props) {
       <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-600 dark:text-gray-300 mb-4">
         <Activity className="w-4 h-4 text-emerald-600" /> Средняя посещаемость {dim}
       </h4>
-      <div className="flex items-end gap-3 h-40">
+      <div className="flex items-end gap-3 h-52">
         {items.map((c) => (
           <div key={c.key} className="flex-1 flex flex-col items-center gap-1 h-full justify-end min-w-0">
             <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">{c.avgAttendance}%</span>
@@ -82,7 +82,7 @@ export default memo(function ChartsPanel({ stats, view = 'course' }: Props) {
         <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-600 dark:text-gray-300 mb-4">
           <BarChart3 className="w-4 h-4 text-amber-600" /> Количество студентов {dim}
         </h4>
-        <div className="flex items-end gap-3 h-40">
+        <div className="flex items-end gap-3 h-52">
           {items.map((c) => (
             <div key={c.key} className="flex-1 flex flex-col items-center gap-1 h-full justify-end min-w-0">
               <span className="text-xs font-bold text-amber-700 dark:text-amber-300">{c.count}</span>
