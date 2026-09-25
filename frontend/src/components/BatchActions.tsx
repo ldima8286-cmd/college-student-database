@@ -144,7 +144,7 @@ export default function BatchActions({ students, onBatchDelete, onBatchExport, o
         onCancel={() => setEditOpen(false)}
       />
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 mb-5">
         <button onClick={toggleAll} className="px-2 py-1 rounded-lg flex items-center gap-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" title={allSelected ? 'Снять выделение' : 'Выбрать все'}>
           {allSelected ? <CheckSquare className="w-5 h-5 text-primary-600" /> : <Square className="w-5 h-5 text-gray-400" />}
           <span>{allSelected ? 'Снять все' : 'Выбрать все'}</span>
