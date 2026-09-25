@@ -1,16 +1,22 @@
 import { z } from 'zod';
 
 const phoneField = z.string()
-  .max(20, 'Телефон: не более 20 символов')
+  .max(13, 'Телефон: не более 13 символов (формат +375 (__) ___-__-__)')
   .refine(
-    (v) => /^\+?[\d\s()-]*$/.test(v) && v.replace(/\D/g, '').length <= 15,
-    'Телефон: только цифры (до 15), допустимы +, (, ), пробел, дефис'
+    (v) => /^\+?[\d\s()-]*$/.test(v) && v.replace(/\D/g, '').length <= 12,
+    'Телефон: только цифры (до 12), белорусский формат +375 (29) 123-45-67'
   )
   .nullable()
   .optional();
 
+const fullNameField = z.string()
+  .min(2, 'ФИО должно содержать минимум 2 символа')
+  .max(200, 'ФИО не более 200 символов')
+  .regex(/^[\p{L}\s'’.\-]+$/u, 'ФИО: только буквы, пробел, дефис, точка (без цифр и спецсимволов)')
+  .refine((v) => /\p{L}/u.test(v), 'ФИО должно содержать буквы');
+
 export const studentSchema = z.object({
-  fullName: z.string().min(2, 'ФИО должно содержать минимум 2 символа').max(200),
+  fullName: fullNameField,
   course: z.number().int().min(1, 'Курс от 1').max(6, 'Курс до 6'),
   group: z.string().min(1, 'Укажите группу').max(50),
   specialty: z.string().min(1, 'Укажите специальность').max(200),
@@ -24,7 +30,7 @@ export const studentSchema = z.object({
 export const studentUpdateSchema = studentSchema.partial();
 
 export const studentSelfSchema = z.object({
-  fullName: z.string().min(2, 'ФИО должно содержать минимум 2 символа').max(200),
+  fullName: fullNameField,
   course: z.number().int().min(1, 'Курс от 1').max(6, 'Курс до 6'),
   group: z.string().min(1, 'Укажите группу').max(50),
   specialty: z.string().min(1, 'Укажите специальность').max(200),
@@ -38,7 +44,7 @@ export const querySchema = z.object({
   limit: z.coerce.number().int().min(1).max(10000).default(50),
   sortBy: z.enum(['fullName', 'course', 'group', 'specialty', 'attendance', 'performance', 'createdAt']).default('fullName'),
   sortOrder: z.enum(['asc', 'desc']).default('asc'),
-  filterDebt: z.coerce.boolean().optional(),
+  filterDebt: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
   filterCourse: z.coerce.number().int().min(1).max(6).optional(),
   status: z.enum(['pending', 'approved']).optional(),
 });
@@ -46,7 +52,7 @@ export const querySchema = z.object({
 export const registerSchema = z.object({
   email: z.string().email('Некорректный email'),
   password: z.string().min(6, 'Минимум 6 символов').max(200),
-  fullName: z.string().min(2, 'ФИО минимум 2 символа').max(200),
+  fullName: z.string().min(2, 'ФИО минимум 2 символа').max(200).regex(/^[\p{L}\s'’.\-]+$/u, 'ФИО: только буквы и пробел'),
   phone: phoneField,
   group: z.string().min(1, 'Укажите группу').max(50),
   course: z.number().int('Курс — целое число').min(1, 'Курс от 1').max(6, 'Курс до 6').default(1),
@@ -72,7 +78,7 @@ export const resetPasswordSchema = z.object({
 });
 
 export const updateProfileSchema = z.object({
-  fullName: z.string().min(2).max(200).optional(),
+  fullName: fullNameField.optional(),
   phone: phoneField,
   avatar: z.string().max(5_000_000).nullable().optional(),
 });

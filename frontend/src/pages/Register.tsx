@@ -4,6 +4,7 @@ import { GraduationCap, Mail, Lock, User, Users, Phone, UserPlus, Eye, EyeOff } 
 import { register } from '../api';
 import { toast } from 'react-hot-toast';
 import { sanitizePhone, PHONE_MAX_LENGTH, isValidPhone } from '../utils/phone';
+import { sanitizeFullName, isValidFullName } from '../utils/fullName';
 
 export default function Register() {
   const [email, setEmail] = useState('');
@@ -27,7 +28,11 @@ export default function Register() {
       return;
     }
     if (phone && !isValidPhone(phone)) {
-      setError('Телефон: только цифры, максимум 15');
+      setError('Телефон: только цифры, максимум 12');
+      return;
+    }
+    if (!isValidFullName(fullName)) {
+      setError('ФИО: только буквы, пробел, дефис и точка');
       return;
     }
     if (password !== confirmPassword) {
@@ -76,7 +81,7 @@ export default function Register() {
               <input
                 type="text"
                 value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                onChange={(e) => setFullName(sanitizeFullName(e.target.value))}
                 className="input pl-10"
                 placeholder="Иванов Иван Иванович"
                 required
@@ -108,7 +113,7 @@ export default function Register() {
                 value={phone}
                 onChange={(e) => setPhone(sanitizePhone(e.target.value))}
                 className="input pl-10"
-                placeholder="+7 (___) ___-__-__"
+                placeholder="+375 (__) ___-__-__"
                 maxLength={PHONE_MAX_LENGTH}
               />
             </div>

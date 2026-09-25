@@ -181,8 +181,8 @@ export default function Dashboard() {
         </div>
 
         <div className="mb-6">
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            <div className="flex-1 w-full sm:max-w-md">
+          <div className="flex flex-col sm:flex-row flex-wrap gap-4 items-start sm:items-center justify-between">
+            <div className="flex-1 w-full sm:max-w-md min-w-[200px]">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input

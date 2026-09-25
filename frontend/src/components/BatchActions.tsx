@@ -17,7 +17,7 @@ interface EditState {
   course?: number;
   attendance?: number;
   performance?: number;
-  academicDebt?: boolean;
+  academicDebt?: 'keep' | boolean;
 }
 
 export default function BatchActions({ students, onBatchDelete, onBatchExport, onBatchUpdate, selectedIds, setSelectedIds }: Props) {
@@ -56,7 +56,7 @@ export default function BatchActions({ students, onBatchDelete, onBatchExport, o
     if (editState.course !== undefined) patch.course = editState.course;
     if (editState.attendance !== undefined) patch.attendance = editState.attendance;
     if (editState.performance !== undefined) patch.performance = editState.performance;
-    if (editState.academicDebt !== undefined) patch.academicDebt = editState.academicDebt;
+    if (editState.academicDebt !== undefined && editState.academicDebt !== 'keep') patch.academicDebt = Boolean(editState.academicDebt);
 
     if (Object.keys(patch).length === 0) {
       toast.error('Заполните хотя бы одно поле');
@@ -114,23 +114,26 @@ export default function BatchActions({ students, onBatchDelete, onBatchExport, o
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Успеваемость (0-5)</span>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Успеваемость (0-10)</span>
               <input
-                type="number" min={0} max={5} step={0.1}
+                type="number" min={0} max={10} step={0.1}
                 value={editState.performance ?? ''}
                 onChange={(e) => setEditState((p) => ({ ...p, performance: e.target.value === '' ? undefined : Number(e.target.value) }))}
                 className={inputCls}
                 placeholder="Не менять"
               />
             </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={editState.academicDebt ?? false}
-                onChange={(e) => setEditState((p) => ({ ...p, academicDebt: e.target.checked }))}
-                className="w-4 h-4 rounded border-gray-300"
-              />
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Выставить академическую задолженность</span>
+            <label className="block">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Академическая задолженность</span>
+              <select
+                value={editState.academicDebt === undefined ? 'keep' : String(editState.academicDebt)}
+                onChange={(e) => setEditState((p) => ({ ...p, academicDebt: e.target.value === 'keep' ? undefined : e.target.value === 'true' }))}
+                className={inputCls}
+              >
+                <option value="keep">Не менять</option>
+                <option value="true">Выставить</option>
+                <option value="false">Снять</option>
+              </select>
             </label>
           </div>
         }
@@ -142,8 +145,9 @@ export default function BatchActions({ students, onBatchDelete, onBatchExport, o
       />
 
       <div className="flex items-center gap-2">
-        <button onClick={toggleAll} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700" title={allSelected ? 'Снять выделение' : 'Выбрать все'}>
+        <button onClick={toggleAll} className="px-2 py-1 rounded-lg flex items-center gap-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" title={allSelected ? 'Снять выделение' : 'Выбрать все'}>
           {allSelected ? <CheckSquare className="w-5 h-5 text-primary-600" /> : <Square className="w-5 h-5 text-gray-400" />}
+          <span>{allSelected ? 'Снять все' : 'Выбрать все'}</span>
         </button>
 
         {selectedIds.length > 0 && (

@@ -200,6 +200,10 @@ export default function AdminPanel() {
     setPage(1);
   };
 
+  const handleToggleSelect = (id: string) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
       <ConfirmDialog
@@ -335,8 +339,8 @@ export default function AdminPanel() {
         <ChartsPanel stats={stats} />
 
         {/* Actions bar */}
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between mb-6">
-          <div className="flex-1 w-full sm:max-w-md">
+        <div className="flex flex-col sm:flex-row flex-wrap gap-4 items-start sm:items-center justify-between mb-6">
+          <div className="flex-1 w-full sm:max-w-md min-w-[200px]">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
@@ -434,12 +438,14 @@ export default function AdminPanel() {
             students={students} sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort}
             onEdit={(s) => { setEditingStudent(s); setShowForm(true); }}
             onDelete={handleDelete} onToggleDebt={handleToggleDebt}
+            selectedIds={selectedIds} onToggleSelect={handleToggleSelect}
           />
         ) : (
           <StudentCards
             students={students}
             onEdit={(s) => { setEditingStudent(s); setShowForm(true); }}
             onDelete={handleDelete} onToggleDebt={handleToggleDebt}
+            selectedIds={selectedIds} onToggleSelect={handleToggleSelect}
           />
         )}
 

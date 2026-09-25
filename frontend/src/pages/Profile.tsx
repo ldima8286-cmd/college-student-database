@@ -5,6 +5,7 @@ import { getMe, updateProfile, changePassword, isAdmin } from '../api';
 import { toast } from 'react-hot-toast';
 import ThemeToggle from '../components/ThemeToggle';
 import { sanitizePhone, PHONE_MAX_LENGTH, isValidPhone } from '../utils/phone';
+import { sanitizeFullName, isValidFullName } from '../utils/fullName';
 
 export default function Profile() {
   const [user, setUser] = useState<any>(null);
@@ -59,7 +60,11 @@ export default function Profile() {
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (phone && !isValidPhone(phone)) {
-      toast.error('Телефон: только цифры, максимум 15');
+      toast.error('Телефон: только цифры, максимум 12');
+      return;
+    }
+    if (!isValidFullName(fullName)) {
+      toast.error('ФИО: только буквы, пробел, дефис и точка');
       return;
     }
     setSaving(true);
@@ -161,7 +166,7 @@ export default function Profile() {
               <input
                 type="text"
                 value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                onChange={(e) => setFullName(sanitizeFullName(e.target.value))}
                 className="input"
                 required
               />
@@ -173,7 +178,7 @@ export default function Profile() {
                 value={phone}
                 onChange={(e) => setPhone(sanitizePhone(e.target.value))}
                 className="input"
-                placeholder="+7 (___) ___-__-__"
+                placeholder="+375 (__) ___-__-__"
                 maxLength={PHONE_MAX_LENGTH}
               />
             </div>

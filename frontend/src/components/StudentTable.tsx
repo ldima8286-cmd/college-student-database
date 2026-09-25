@@ -11,6 +11,8 @@ interface Props {
   onDelete: (student: Student) => void;
   onToggleDebt: (student: Student) => void;
   readOnly?: boolean;
+  selectedIds?: string[];
+  onToggleSelect?: (id: string) => void;
 }
 
 const SortIcon = ({ field, current, order }: { field: SortField; current: SortField; order: SortOrder }) => {
@@ -30,7 +32,8 @@ const performanceColor = (perf: number) => {
   return 'text-red-600 dark:text-red-400';
 };
 
-export default memo(function StudentTable({ students, sortBy, sortOrder, onSort, onEdit, onDelete, onToggleDebt, readOnly }: Props) {
+export default memo(function StudentTable({ students, sortBy, sortOrder, onSort, onEdit, onDelete, onToggleDebt, readOnly, selectedIds, onToggleSelect }: Props) {
+  const allowSelect = !!onToggleSelect && !readOnly;
   const columns: { field: SortField; label: string; className?: string }[] = [
     { field: 'fullName', label: 'ФИО' },
     { field: 'course', label: 'Курс', className: 'hidden sm:table-cell' },
@@ -46,6 +49,7 @@ export default memo(function StudentTable({ students, sortBy, sortOrder, onSort,
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+              {allowSelect && <th className="px-4 py-3 w-10"></th>}
               {columns.map((col) => (
                 <th key={col.field} onClick={() => onSort(col.field)}
                   className={`px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors select-none ${col.className || ''}`}>
@@ -62,6 +66,18 @@ export default memo(function StudentTable({ students, sortBy, sortOrder, onSort,
               <tr key={student.id}
                 className={`border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${
                   student.academicDebt ? 'bg-red-50/50 dark:bg-red-900/10' : ''}`}>
+                {allowSelect && (
+                  <td className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={!!selectedIds?.includes(student.id)}
+                      onChange={() => onToggleSelect?.(student.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 accent-primary-600 cursor-pointer"
+                      title="Выбрать для групповых действий"
+                    />
+                  </td>
+                )}
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
                     {student.academicDebt && <span className="flex-shrink-0 w-2 h-2 rounded-full bg-red-500"></span>}

@@ -8,6 +8,8 @@ interface Props {
   onDelete: (student: Student) => void;
   onToggleDebt: (student: Student) => void;
   readOnly?: boolean;
+  selectedIds?: string[];
+  onToggleSelect?: (id: string) => void;
 }
 
 const attendanceColor = (att: number) => {
@@ -22,14 +24,26 @@ const performanceColor = (perf: number) => {
   return 'text-red-600 dark:text-red-400';
 };
 
-export default memo(function StudentCards({ students, onEdit, onDelete, onToggleDebt, readOnly }: Props) {
+export default memo(function StudentCards({ students, onEdit, onDelete, onToggleDebt, readOnly, selectedIds, onToggleSelect }: Props) {
+  const allowSelect = !!onToggleSelect && !readOnly;
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {students.map((student) => (
         <div key={student.id}
-          className={`card card-hover animate-fade-in ${
+          className={`card card-hover animate-fade-in relative ${
             student.academicDebt ? 'border-l-4 border-l-red-500' : 'border-l-4 border-l-primary-500'
-          }`}>
+          } ${selectedIds?.includes(student.id) ? 'ring-2 ring-primary-500 border-primary-500' : ''}`}>
+          {allowSelect && (
+            <div className="absolute top-3 right-3 z-10">
+              <input
+                type="checkbox"
+                checked={!!selectedIds?.includes(student.id)}
+                onChange={() => onToggleSelect?.(student.id)}
+                className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 accent-primary-600 cursor-pointer"
+                title="Выбрать для групповых действий"
+              />
+            </div>
+          )}
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-gray-900 dark:text-white truncate">{student.fullName}</h3>

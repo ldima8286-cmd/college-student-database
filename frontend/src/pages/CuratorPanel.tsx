@@ -1,12 +1,15 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { UserRound, Users, Phone, Mail, AlertTriangle, Activity, GraduationCap, ClipboardList } from 'lucide-react';
-import { getStudents, getMe, getSchedule, getSettings } from '../api';
+import { UserRound, Users, Phone, Mail, AlertTriangle, Activity, GraduationCap, ClipboardList, LogOut, CalendarDays } from 'lucide-react';
+import { getStudents, getMe, getSchedule, getSettings, logout } from '../api';
 import { Student, ScheduleEntry } from '../types';
 import { toast } from 'react-hot-toast';
 import MarksEditor from '../components/MarksEditor';
 import ScheduleView from '../components/ScheduleView';
 import Pagination from '../components/Pagination';
+import ThemeToggle from '../components/ThemeToggle';
+
+type CuratorTab = 'students' | 'schedule';
 
 export default function CuratorPanel() {
   const [students, setStudents] = useState<Student[]>([]);
@@ -19,6 +22,13 @@ export default function CuratorPanel() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [limit] = useState(50);
+  const [tab, setTab] = useState<CuratorTab>('students');
+
+  const handleLogout = async () => {
+    await logout();
+    toast.success('Вы вышли');
+    window.location.href = '/login';
+  };
 
   useEffect(() => {
     getMe().then((u) => setGroup(u?.group ?? null)).catch(() => {});
@@ -58,7 +68,7 @@ export default function CuratorPanel() {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-3">
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-6 gap-3">
         <div>
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <UserRound className="w-5 h-5 text-primary-600" />
@@ -68,14 +78,30 @@ export default function CuratorPanel() {
             Полный доступ к данным студентов группы{group ? ` ${group}` : ''}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Link to="/curator/journal" className="btn btn-secondary text-sm flex items-center gap-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button onClick={() => setTab('students')}
+            className={`btn text-sm flex items-center gap-1 ${tab === 'students' ? 'btn-primary' : 'btn-ghost'}`}>
+            <Users className="w-4 h-4" /> Студенты
+          </button>
+          <button onClick={() => setTab('schedule')}
+            className={`btn text-sm flex items-center gap-1 ${tab === 'schedule' ? 'btn-primary' : 'btn-ghost'}`}>
+            <CalendarDays className="w-4 h-4" /> Расписание
+          </button>
+          <Link to="/curator/journal" className="btn btn-secondary text-sm flex items-center gap-1 whitespace-nowrap">
             <ClipboardList className="w-4 h-4" /> Журнал
           </Link>
           <button onClick={() => { if (page !== 1) setPage(1); else { loadStudents(); loadSchedule(); } }} className="btn btn-secondary text-sm">Обновить</button>
+          <ThemeToggle />
+          <button onClick={handleLogout} className="btn btn-ghost text-sm flex items-center gap-1 text-red-600">
+            <LogOut className="w-4 h-4" /> Выйти
+          </button>
         </div>
       </div>
 
+      {tab === 'schedule' ? (
+        <ScheduleView entries={schedule} group={group} semesterStart={semesterStart} />
+      ) : (
+      <>
       {students.length === 0 && !loading && (
         <div className="card text-center py-10 text-gray-500">
           <Users className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" />
@@ -172,10 +198,10 @@ export default function CuratorPanel() {
               <MarksEditor studentId={selected.id} studentName={selected.fullName} />
             </>
           )}
-
-          <ScheduleView entries={schedule} group={group} semesterStart={semesterStart} />
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 }

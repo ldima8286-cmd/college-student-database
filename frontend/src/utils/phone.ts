@@ -1,5 +1,5 @@
-export const PHONE_MAX_LENGTH = 16; // '+' + до 15 цифр
-export const PHONE_MAX_DIGITS = 15;
+export const PHONE_MAX_LENGTH = 13; // '+' + до 12 цифр (+375 и 9 цифр номера)
+export const PHONE_MAX_DIGITS = 12;
 
 export function sanitizePhone(input: string): string {
   const hasPlus = input.startsWith('+');

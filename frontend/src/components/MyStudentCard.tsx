@@ -4,6 +4,7 @@ import { getMyStudent, saveMyStudent, getMe } from '../api';
 import { toast } from 'react-hot-toast';
 import { Save, X, User, BookOpen, Users, Mail, Phone, IdCard, Clock, CheckCircle2, Pencil } from 'lucide-react';
 import { sanitizePhone, PHONE_MAX_LENGTH, isValidPhone } from '../utils/phone';
+import { sanitizeFullName, isValidFullName } from '../utils/fullName';
 
 const emptyForm = {
   fullName: '',
@@ -53,10 +54,11 @@ export default function MyStudentCard() {
     const errs: Record<string, string> = {};
     if (!form.fullName.trim()) errs.fullName = 'Введите ФИО';
     else if (form.fullName.trim().length < 2) errs.fullName = 'Минимум 2 символа';
+    else if (!isValidFullName(form.fullName)) errs.fullName = 'ФИО: только буквы, пробел, дефис и точка';
     if (!form.group.trim()) errs.group = 'Введите группу';
     if (!form.specialty.trim()) errs.specialty = 'Введите специальность';
     if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = 'Некорректный email';
-    if (form.phone && !isValidPhone(form.phone)) errs.phone = 'Телефон: только цифры, максимум 15';
+    if (form.phone && !isValidPhone(form.phone)) errs.phone = 'Телефон: только цифры, максимум 12';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -165,7 +167,7 @@ export default function MyStudentCard() {
         <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="sm:col-span-2">
             <label className="label flex items-center gap-1.5"><User className="w-3.5 h-3.5" /> ФИО *</label>
-            <input type="text" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+            <input type="text" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: sanitizeFullName(e.target.value) })}
               className={`input ${errors.fullName ? 'border-red-500' : ''}`} placeholder="Иванов Иван Иванович" />
             {errors.fullName && <p className="text-red-500 text-xs mt-1">{errors.fullName}</p>}
           </div>
@@ -201,7 +203,7 @@ export default function MyStudentCard() {
           <div>
             <label className="label flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" /> Телефон</label>
             <input type="tel" value={form.phone || ''} onChange={(e) => setForm({ ...form, phone: sanitizePhone(e.target.value) })}
-              className={`input ${errors.phone ? 'border-red-500' : ''}`} placeholder="+7 (___) ___-__-__" maxLength={PHONE_MAX_LENGTH} />
+              className={`input ${errors.phone ? 'border-red-500' : ''}`} placeholder="+375 (__) ___-__-__" maxLength={PHONE_MAX_LENGTH} />
             {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
           </div>
 
