@@ -33,17 +33,6 @@ export default memo(function StudentCards({ students, onEdit, onDelete, onToggle
           className={`card card-hover animate-fade-in relative ${
             student.academicDebt ? 'border-l-4 border-l-red-500' : 'border-l-4 border-l-primary-500'
           } ${selectedIds?.includes(student.id) ? 'ring-2 ring-primary-500 border-primary-500' : ''}`}>
-          {allowSelect && (
-            <div className="absolute top-3 right-3 z-10">
-              <input
-                type="checkbox"
-                checked={!!selectedIds?.includes(student.id)}
-                onChange={() => onToggleSelect?.(student.id)}
-                className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 accent-primary-600 cursor-pointer"
-                title="Выбрать для групповых действий"
-              />
-            </div>
-          )}
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-gray-900 dark:text-white truncate">{student.fullName}</h3>
@@ -56,6 +45,15 @@ export default memo(function StudentCards({ students, onEdit, onDelete, onToggle
             </div>
             {!readOnly && (
               <div className="flex items-center gap-1 ml-2">
+                {allowSelect && (
+                  <input
+                    type="checkbox"
+                    checked={!!selectedIds?.includes(student.id)}
+                    onChange={() => onToggleSelect?.(student.id)}
+                    className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 accent-primary-600 cursor-pointer mr-0.5"
+                    title="Выбрать для групповых действий"
+                  />
+                )}
                 <button onClick={() => onEdit(student)} className="p-1.5 rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500" title="Редактировать">
                   <Pencil className="w-4 h-4" />
                 </button>
