@@ -43,7 +43,7 @@ export default function StudentForm({ editingStudent, onSuccess, onCancel }: Pro
     const errs: Record<string, string> = {};
     if (!form.fullName.trim()) errs.fullName = 'Введите ФИО';
     else if (form.fullName.trim().length < 2) errs.fullName = 'Минимум 2 символа';
-    else if (!isValidFullName(form.fullName)) errs.fullName = 'ФИО: только буквы, пробел, дефис и точка';
+    else if (!isValidFullName(form.fullName)) errs.fullName = 'ФИО: только буквы, пробел, тире и точка';
     if (!form.group.trim()) errs.group = 'Введите группу';
     if (!form.specialty.trim()) errs.specialty = 'Введите специальность';
     if (form.attendance < 0 || form.attendance > 100) errs.attendance = '0-100';
@@ -59,6 +59,7 @@ export default function StudentForm({ editingStudent, onSuccess, onCancel }: Pro
     if (!validate()) return;
     const payload = {
       ...form,
+      fullName: form.fullName.trim(),
       email: form.email?.trim() ? form.email.trim() : null,
       phone: form.phone?.trim() ? form.phone.trim() : null,
     };

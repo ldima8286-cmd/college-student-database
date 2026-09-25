@@ -64,7 +64,7 @@ export default function Profile() {
       return;
     }
     if (!isValidFullName(fullName)) {
-      toast.error('ФИО: только буквы, пробел, дефис и точка');
+      toast.error('ФИО: только буквы, пробел, тире и точка');
       return;
     }
     setSaving(true);

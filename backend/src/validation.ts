@@ -12,7 +12,7 @@ const phoneField = z.string()
 const fullNameField = z.string()
   .min(2, 'ФИО должно содержать минимум 2 символа')
   .max(200, 'ФИО не более 200 символов')
-  .regex(/^[\p{L}\s'’.\-]+$/u, 'ФИО: только буквы, пробел, дефис, точка (без цифр и спецсимволов)')
+  .regex(/^[\p{L}\s'’.\-\u2013\u2014]+$/u, 'ФИО: только буквы, пробел, тире, точка (без цифр и спецсимволов)')
   .refine((v) => /\p{L}/u.test(v), 'ФИО должно содержать буквы');
 
 export const studentSchema = z.object({
@@ -52,7 +52,7 @@ export const querySchema = z.object({
 export const registerSchema = z.object({
   email: z.string().email('Некорректный email'),
   password: z.string().min(6, 'Минимум 6 символов').max(200),
-  fullName: z.string().min(2, 'ФИО минимум 2 символа').max(200).regex(/^[\p{L}\s'’.\-]+$/u, 'ФИО: только буквы и пробел'),
+  fullName: z.string().min(2, 'ФИО минимум 2 символа').max(200).regex(/^[\p{L}\s'’.\-\u2013\u2014]+$/u, 'ФИО: только буквы и пробел'),
   phone: phoneField,
   group: z.string().min(1, 'Укажите группу').max(50),
   course: z.number().int('Курс — целое число').min(1, 'Курс от 1').max(6, 'Курс до 6').default(1),

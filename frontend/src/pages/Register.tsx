@@ -32,7 +32,7 @@ export default function Register() {
       return;
     }
     if (!isValidFullName(fullName)) {
-      setError('ФИО: только буквы, пробел, дефис и точка');
+      setError('ФИО: только буквы, пробел, тире и точка');
       return;
     }
     if (password !== confirmPassword) {

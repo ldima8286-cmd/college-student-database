@@ -54,7 +54,7 @@ export default function MyStudentCard() {
     const errs: Record<string, string> = {};
     if (!form.fullName.trim()) errs.fullName = 'Введите ФИО';
     else if (form.fullName.trim().length < 2) errs.fullName = 'Минимум 2 символа';
-    else if (!isValidFullName(form.fullName)) errs.fullName = 'ФИО: только буквы, пробел, дефис и точка';
+    else if (!isValidFullName(form.fullName)) errs.fullName = 'ФИО: только буквы, пробел, тире и точка';
     if (!form.group.trim()) errs.group = 'Введите группу';
     if (!form.specialty.trim()) errs.specialty = 'Введите специальность';
     if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = 'Некорректный email';

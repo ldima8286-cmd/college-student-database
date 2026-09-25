@@ -1,15 +1,13 @@
-const ALLOWED_CHARS = /[^\p{L}\s'’.\-]/gu;
+const ALLOWED_CHARS = /[^\p{L}\s'’.\-\u2013\u2014]/gu;
 
 export function sanitizeFullName(input: string): string {
-  return input
-    .replace(ALLOWED_CHARS, '')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
+  return input.replace(ALLOWED_CHARS, '').replace(/\s{2,}/g, ' ');
 }
 
 export function isValidFullName(input: string): boolean {
-  if (!input) return false;
-  if (input.length < 2 || input.length > 200) return false;
-  if (!/\p{L}/u.test(input)) return false;
-  return /^[\p{L}\s'’.\-]+$/u.test(input);
+  const v = input.trim();
+  if (!v) return false;
+  if (v.length < 2 || v.length > 200) return false;
+  if (!/\p{L}/u.test(v)) return false;
+  return /^[\p{L}\s'’.\-\u2013\u2014]+$/u.test(v);
 }
