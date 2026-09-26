@@ -1,5 +1,11 @@
 import { cleanEnv, str, port, num, makeValidator } from 'envalid';
 
+if (typeof process.loadEnvFile === 'function') {
+  try {
+    process.loadEnvFile();
+  } catch {}
+}
+
 const dbUrl = makeValidator((v) => {
   if (!v) return 'sqlite:./database.sqlite';
   if (v.startsWith('sqlite:')) return v;
