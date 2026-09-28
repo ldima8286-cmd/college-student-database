@@ -229,6 +229,7 @@ Windows: можно использовать скрипт `start.bat` — он �
 | `npm run db:generate` / `db:migrate` / `db:push` | Миграции PostgreSQL (Drizzle Kit) |
 | `npm run db:generate:sqlite` / `db:migrate:sqlite` / `db:push:sqlite` | Миграции SQLite |
 | `npm run db:studio` | Графический интерфейс Drizzle Studio |
+| `npm run db:fill` | Дозаполнение пробелов: расписание для групп без занятий, посещаемость и оценки на прошедших занятиях семестра, `semesterStart`. Существующие записи не трогает, повторный запуск ничего не меняет |
 
 ### Фронтенд (`frontend/`)
 
