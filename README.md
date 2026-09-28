@@ -7,7 +7,7 @@
 ## Бейджи
 
 ![CI](https://github.com/ldima8286-cmd/college-student-database/actions/workflows/ci.yml/badge.svg)
-![Node.js](https://img.shields.io/badge/Node.js-20-339933?style=flat-square&logo=node.js&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-22-339933?style=flat-square&logo=node.js&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?style=flat-square&logo=typescript&logoColor=white)
 ![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black)
 ![Vite](https://img.shields.io/badge/Vite-6-646CFF?style=flat-square&logo=vite&logoColor=white)
@@ -93,7 +93,7 @@
 
 | Технология | Назначение |
 |------------|------------|
-| **Node.js 20** | Среда выполнения |
+| **Node.js 22** | Среда выполнения |
 | **Express 4** | REST API |
 | **TypeScript 5** | Типизация серверного кода |
 | **Drizzle ORM 0.45** | Работа с БД (SQLite и PostgreSQL) |
@@ -121,7 +121,7 @@
 
 ## Требования
 
-- Node.js 20 LTS (совместимо с 18+)
+- Node.js 22 LTS (для разработки и тестов — не ниже 22.19, этого требует `undici` в связке с `jsdom`)
 - npm 10+
 - Docker Desktop (опционально, для продакшен-запуска)
 

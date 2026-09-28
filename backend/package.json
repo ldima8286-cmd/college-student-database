@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
-    "better-sqlite3": "^13.0.3",
+    "better-sqlite3": "~12.6.2",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "drizzle-orm": "^0.45.3",
