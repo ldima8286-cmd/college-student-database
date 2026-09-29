@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Upload, FileJson, FileSpreadsheet, Loader2, X, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { Student } from '../types';
-import { createStudent, getStudents } from '../api';
+import { getStudents, importStudents } from '../api';
 import { toast } from 'react-hot-toast';
 
 interface Props {
@@ -203,14 +203,17 @@ export default function ImportExport({ onImportComplete }: Props) {
       return;
     }
     setImporting(true);
-    let imported = 0;
     try {
-      for (const row of rowsToImport) {
-        await createStudent(row.student!);
-        duplicateKeys.current?.add(row.key);
-        imported++;
-      }
-      toast.success(`Импортировано: ${imported} студент(ов)`);
+      // Один запрос вместо цикла: раньше файл свыше 200 записей упирался
+      // в лимит запросов, а частичный импорт при повторе давал дубликаты.
+      const res = await importStudents(rowsToImport.map((r) => r.student!));
+      for (const row of rowsToImport) duplicateKeys.current?.add(row.key);
+      const skipped = res.skipped;
+      toast.success(
+        skipped > 0
+          ? `Импортировано: ${res.created} студент(ов), пропущено дубликатов: ${skipped}`
+          : `Импортировано: ${res.created} студент(ов)`,
+      );
       duplicateKeys.current = undefined;
       setPreview(null);
       onImportComplete();

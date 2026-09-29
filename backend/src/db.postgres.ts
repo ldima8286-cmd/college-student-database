@@ -187,6 +187,24 @@ export async function createStudent(data: Omit<Student, 'id' | 'createdAt' | 'up
   return inserted[0] as unknown as Student;
 }
 
+export async function createStudentsBatch(rows: (Omit<Student, 'id' | 'createdAt' | 'updatedAt'>)[], idsOut: string[]): Promise<Student[]> {
+  const now = new Date().toISOString();
+  const values = rows.map((data) => {
+    const id = crypto.randomUUID();
+    idsOut.push(id);
+    return {
+      id, fullName: data.fullName, course: data.course, group: data.group,
+      specialty: data.specialty, attendance: data.attendance, performance: data.performance,
+      academicDebt: data.academicDebt, email: data.email ?? null, phone: data.phone ?? null,
+      userId: data.userId ?? null, status: data.status ?? 'approved',
+      createdAt: new Date(now), updatedAt: new Date(now),
+    };
+  });
+  if (values.length === 0) return [];
+  const inserted = await db.insert(students).values(values).returning();
+  return inserted as unknown as Student[];
+}
+
 export async function updateStudent(id: string, data: Partial<Omit<Student, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Student | null> {
   const existing = await getStudentById(id);
   if (!existing) return null;

@@ -144,6 +144,17 @@ export async function createStudent(student: Omit<Student, 'id' | 'createdAt' | 
   return data.data;
 }
 
+export async function importStudents(
+  students: (Omit<Student, 'id' | 'createdAt' | 'updatedAt'>)[],
+): Promise<{ created: number; skipped: number }> {
+  const { data } = await api.post<ApiResponse<{ created: number; skipped: number }>>(
+    '/students/batch-import',
+    { students },
+  );
+  if (!data.success || !data.data) throw new Error('Ошибка импорта');
+  return data.data;
+}
+
 export async function updateStudent(id: string, student: Partial<Student>): Promise<Student> {
   const { data } = await api.put<ApiResponse<Student>>(`/students/${id}`, student);
   if (!data.success || !data.data) throw new Error('Ошибка обновления');
@@ -174,6 +185,13 @@ export async function getStats(): Promise<StudentStats> {
 export async function getPublicStats(): Promise<any> {
   const { data } = await api.get<ApiResponse<any>>('/public/stats');
   if (!data.success || !data.data) throw new Error('Ошибка загрузки статистики');
+  return data.data;
+}
+
+/** Список последних студентов доступен только авторизованным и в рамках группы. */
+export async function getRecentStudents(): Promise<any[]> {
+  const { data } = await api.get<ApiResponse<any[]>>('/students/recent');
+  if (!data.success || !data.data) return [];
   return data.data;
 }
 

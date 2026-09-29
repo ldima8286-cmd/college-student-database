@@ -30,6 +30,10 @@ vi.mock('./db.js', () => ({
   updateUser: vi.fn().mockResolvedValue({ id: '1' }),
   updateUserPassword: vi.fn().mockResolvedValue(true),
   getStudentsByIds: vi.fn().mockResolvedValue([]),
+  createStudentsBatch: vi.fn(async (rows: any[], idsOut: string[]) => {
+    rows.forEach((_, i) => idsOut.push(`new-${i}`));
+    return [];
+  }),
   deleteStudentsByIds: vi.fn().mockResolvedValue(0),
   updateStudentsByIds: vi.fn().mockResolvedValue(0),
   updateUserRoleAndGroup: vi.fn().mockResolvedValue({ id: '1', email: 'admin@college.local', role: 'curator', group: 'ПО-507' }),
@@ -99,6 +103,7 @@ vi.mock('./cache.js', () => ({
 vi.mock('./audit.js', () => ({
   logAudit: vi.fn().mockResolvedValue(undefined),
   getAuditLogs: vi.fn().mockResolvedValue({ data: [], total: 0 }),
+  clearAuditLogs: vi.fn().mockResolvedValue(0),
 }));
 
 vi.mock('./swagger.js', () => ({
@@ -127,7 +132,9 @@ import request from 'supertest';
 import { router } from './routes.js';
 
 const app = express();
-app.use(express.json());
+// Тот же лимит тела запроса, что и в index.ts: тесты импорта должны упираться
+// в лимит импорта, а не в 413 от дефолтных 100 КБ.
+app.use(express.json({ limit: '10mb' }));
 app.use('/api', router);
 
 describe('API Routes', () => {
@@ -448,6 +455,74 @@ describe('API Routes', () => {
       });
       const res = await request(app).get('/api/journal/sch1?date=2026-09-01');
       expect(res.status).toBe(200);
+    });
+  });
+
+  describe('POST /api/students/batch-import', () => {
+    // ФИО не должно содержать цифр — такое имя отвергает fullNameField.
+    const letters = 'абвгдежзиклмнопрстуфхцчшщэюя';
+    const name = (i: number) => {
+      const a = letters[i % letters.length];
+      const b = letters[Math.floor(i / letters.length) % letters.length];
+      const c = letters[Math.floor(i / (letters.length ** 2)) % letters.length];
+      return `Студент ${a}${b}${c}`;
+    };
+    const student = (fullName: string, group = 'ПО-507') => ({
+      fullName, course: 2, group, specialty: 'Программирование',
+      attendance: 100, performance: 5, academicDebt: false,
+      email: null, phone: null,
+    });
+
+    it('imports a whole file in one request and reports the count', async () => {
+      const { createStudentsBatch, getAllStudents } = await import('./db.js');
+      (getAllStudents as any).mockResolvedValue({ students: [], total: 0 });
+      const rows = Array.from({ length: 450 }, (_, i) => student(name(i)));
+      const res = await request(app)
+        .post('/api/students/batch-import')
+        .send({ students: rows });
+      expect(res.status).toBe(201);
+      expect(res.body.data.created).toBe(450);
+      expect(createStudentsBatch).toHaveBeenCalledTimes(1);
+    });
+
+    it('skips students that already exist instead of duplicating them', async () => {
+      const { createStudentsBatch, getAllStudents } = await import('./db.js');
+      (getAllStudents as any).mockResolvedValue({
+        students: [{ id: 's1', fullName: name(0), group: 'ПО-507' }],
+        total: 1,
+      });
+      const res = await request(app)
+        .post('/api/students/batch-import')
+        .send({ students: [student(name(0)), student(name(1))] });
+      expect(res.status).toBe(201);
+      expect(res.body.data).toEqual({ created: 1, skipped: 1 });
+      const passed = (createStudentsBatch as any).mock.calls.at(-1)?.[0];
+      expect(passed).toHaveLength(1);
+      expect(passed[0].fullName).toBe(name(1));
+    });
+
+    it('rejects a file above the import limit', async () => {
+      const rows = Array.from({ length: 1001 }, (_, i) => student(name(i)));
+      const res = await request(app)
+        .post('/api/students/batch-import')
+        .send({ students: rows });
+      expect(res.status).toBe(400);
+    });
+
+    it('rejects an empty file', async () => {
+      const res = await request(app).post('/api/students/batch-import').send({ students: [] });
+      expect(res.status).toBe(400);
+    });
+  });
+
+  describe('DELETE /api/audit-logs', () => {
+    it('returns the deleted count inside data', async () => {
+      const { clearAuditLogs } = await import('./audit.js');
+      (clearAuditLogs as any).mockResolvedValue(7);
+      currentUser.role = 'admin';
+      const res = await request(app).delete('/api/audit-logs');
+      expect(res.status).toBe(200);
+      expect(res.body.data.deleted).toBe(7);
     });
   });
 

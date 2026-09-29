@@ -129,7 +129,15 @@ async function main(): Promise<void> {
   const today = new Date().toISOString().slice(0, 10);
   logger.info(`Семестр: ${settings.semesterStart}, заполняю по ${today}`);
 
-  const { students } = await getAllStudents();
+  // Явная пагинация: getAllStudents() по умолчанию возвращает только 50 записей,
+  // и дозаполнение молча пропускало бы всё, что дальше первой страницы.
+  const PAGE = 500;
+  const students: Student[] = [];
+  for (let page = 1; ; page++) {
+    const batch = await getAllStudents(undefined, page, PAGE, 'fullName', 'asc');
+    students.push(...batch.students);
+    if (students.length >= batch.total || batch.students.length === 0) break;
+  }
   if (students.length === 0) {
     logger.info('Студентов в базе нет — нечего дозаполнять.');
     process.exit(0);

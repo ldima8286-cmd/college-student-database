@@ -4,11 +4,12 @@ import {
   GraduationCap, Users, TrendingUp, BookOpen, Award,
   LogIn, UserPlus, RefreshCw,
 } from 'lucide-react';
-import { getPublicStats } from '../api';
+import { getPublicStats, getRecentStudents, isAuthenticated } from '../api';
 import ThemeToggle from '../components/ThemeToggle';
 
 export default function PublicShowcase() {
   const [data, setData] = useState<any>(null);
+  const [recent, setRecent] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -17,6 +18,9 @@ export default function PublicShowcase() {
       setLoading(true);
       setError('');
       setData(await getPublicStats());
+      // Список студентов не входит в публичные агрегаты: ФИО и группы
+      // показываются только авторизованному пользователю.
+      setRecent(isAuthenticated() ? await getRecentStudents() : []);
     } catch (err: any) {
       setError(err.message || 'Не удалось загрузить статистику');
     } finally {
@@ -142,11 +146,13 @@ export default function PublicShowcase() {
 
               <div className="card">
                 <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-4">Недавно добавленные</h3>
-                {(data.recent ?? []).length === 0 ? (
-                  <p className="text-sm text-gray-400">Нет данных</p>
+                {recent.length === 0 ? (
+                  <p className="text-sm text-gray-400">
+                    {isAuthenticated() ? 'Нет данных' : 'Доступно после входа'}
+                  </p>
                 ) : (
                   <ul className="divide-y divide-gray-100 dark:divide-gray-700">
-                    {(data.recent ?? []).map((s: any) => (
+                    {recent.map((s: any) => (
                       <li key={s.id} className="py-2.5 flex items-center justify-between">
                         <div>
                           <p className="text-sm font-medium text-gray-900 dark:text-white">{s.fullName}</p>

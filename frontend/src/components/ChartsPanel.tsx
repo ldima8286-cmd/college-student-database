@@ -32,7 +32,8 @@ export default memo(function ChartsPanel({ stats, view = 'course' }: Props) {
   if (items.length === 0) return null;
 
   const dim = view === 'course' ? 'по курсам' : 'по группам';
-  const maxPerf = 5;
+  // Успеваемость оценивается по 10-балльной шкале, посещаемость — в процентах.
+  const maxPerf = 10;
   const maxAtt = 100;
 
   const PerfChart = () => (

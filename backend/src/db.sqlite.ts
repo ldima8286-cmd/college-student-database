@@ -331,6 +331,33 @@ export async function createStudent(data: Omit<Student, 'id' | 'createdAt' | 'up
   return (await getStudentById(id))!;
 }
 
+/**
+ * Массовое создание студентов одной транзакцией. Идентификаторы уже
+ * сгенерированы вызывающим кодом, чтобы в обоих драйверах поведение совпадало.
+ */
+export async function createStudentsBatch(rows: (Omit<Student, 'id' | 'createdAt' | 'updatedAt'>)[], idsOut: string[]): Promise<Student[]> {
+  const now = new Date().toISOString();
+  const created: Student[] = [];
+  const insert = sqliteDb.prepare(
+    `INSERT INTO students (id, fullName, course, "group", specialty, attendance, performance, academicDebt, email, phone, userId, status, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  );
+  sqliteDb.transaction(() => {
+    for (const data of rows) {
+      const id = crypto.randomUUID();
+      insert.run(id, data.fullName, data.course, data.group, data.specialty, data.attendance, data.performance, data.academicDebt ? 1 : 0, data.email ?? null, data.phone ?? null, data.userId ?? null, data.status ?? 'approved', now, now);
+      idsOut.push(id);
+      created.push({
+        id, fullName: data.fullName, course: data.course, group: data.group,
+        specialty: data.specialty, attendance: data.attendance, performance: data.performance,
+        academicDebt: data.academicDebt, email: data.email ?? null, phone: data.phone ?? null,
+        userId: data.userId ?? null, status: data.status ?? 'approved', createdAt: now, updatedAt: now,
+      });
+    }
+  })();
+  return created;
+}
+
 export async function updateStudent(id: string, data: Partial<Omit<Student, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Student | null> {
   const existing = await getStudentById(id);
   if (!existing) return null;

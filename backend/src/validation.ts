@@ -94,6 +94,10 @@ export const batchIdsSchema = z.object({
   ids: z.array(z.string()).min(1).max(1000),
 }));
 
+export const batchImportSchema = z.object({
+  students: z.array(studentSchema).min(1).max(5000),
+});
+
 export const batchUpdateSchema = z.object({
   ids: z.array(z.string()).min(1).max(1000),
   patch: z.object({

@@ -5,6 +5,7 @@ import {
   getStudentById,
   getStudentByUserId,
   createStudent,
+  createStudentsBatch,
   updateStudent,
   deleteStudent,
   toggleDebt,
@@ -48,7 +49,9 @@ import {
 import {
   studentSchema, studentUpdateSchema, studentSelfSchema, querySchema,
   registerSchema, loginSchema, refreshSchema,
-  updateProfileSchema, changePasswordSchema, batchIdsSchema, batchUpdateSchema, webhookSchema,
+  updateProfileSchema, changePasswordSchema,   batchIdsSchema,
+  batchImportSchema,
+  batchUpdateSchema, webhookSchema,
   forgotPasswordSchema, resetPasswordSchema, subjectSchema,
   scheduleCreateSchema, scheduleUpdateSchema, markSchema, markUpdateSchema, userAdminUpdateSchema,
   journalQuerySchema, journalDateQuerySchema, journalSaveSchema, settingsSchema,
@@ -534,6 +537,60 @@ router.post('/students/batch-update', requireAdmin, async (req: Request, res: Re
   }
 });
 
+const MAX_BATCH_IMPORT = 1000;
+
+/**
+ * Массовый импорт студентов: одна транзакция вместо N последовательных POST.
+ * Прежний цикл на клиенте упирался в лимит запросов и при обрыве оставлял
+ * часть файла импортированной, а повтор создавал дубликаты.
+ */
+router.post('/students/batch-import', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const body = batchImportSchema.parse(req.body);
+    if (body.students.length === 0) {
+      return res.status(400).json({ success: false, error: 'Нет студентов для импорта' });
+    }
+    if (body.students.length > MAX_BATCH_IMPORT) {
+      return res.status(400).json({
+        success: false,
+        error: `За раз можно импортировать не более ${MAX_BATCH_IMPORT} студентов`,
+      });
+    }
+    const existing = (await getAllStudents(undefined, 1, 10000, 'fullName', 'asc')).students;
+    const seen = new Set(existing.map((s) => `${s.fullName}|${s.group}`));
+    const fresh: typeof body.students = [];
+    let skipped = 0;
+    for (const student of body.students) {
+      const key = `${student.fullName}|${student.group}`;
+      if (seen.has(key)) {
+        skipped++;
+        continue;
+      }
+      seen.add(key);
+      fresh.push(student);
+    }
+
+    const created: string[] = [];
+    await createStudentsBatch(fresh.map((s) => ({
+      ...s,
+      email: s.email ?? null,
+      phone: s.phone ?? null,
+      userId: null,
+      status: 'approved' as const,
+    })), created);
+
+    void logAudit('batch-import', 'student', undefined, req.auth?.role, { created: created.length, skipped });
+    invalidateStudentsCache();
+    void triggerWebhook('students.created', { count: created.length }).catch(() => {});
+    res.status(201).json({ success: true, data: { created: created.length, skipped } });
+  } catch (err: any) {
+    if (err.name === 'ZodError') {
+      return res.status(400).json({ success: false, error: 'Ошибка валидации', details: err.errors });
+    }
+    res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
+  }
+});
+
 router.post('/students', requireAdmin, async (req: Request, res: Response) => {
   try {
     const data = studentSchema.parse(req.body);
@@ -705,7 +762,8 @@ router.delete('/audit-logs', requireAdmin, async (req: Request, res: Response) =
   try {
     const deleted = await clearAuditLogs();
     await logAudit('delete', 'audit_log', undefined, req.auth?.userId, { clearedAll: true });
-    res.json({ success: true, deleted });
+    // Ответ в общем формате ApiResponse: клиент читал data.deleted и получал 0
+    res.json({ success: true, data: { deleted: deleted ?? 0 } });
   } catch {
     res.status(500).json({ success: false, error: 'Внутренняя ошибка сервера' });
   }

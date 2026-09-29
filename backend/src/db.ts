@@ -127,6 +127,7 @@ interface DbModule {
   getStudentById(id: string): Promise<Student | undefined>;
   getStudentByUserId(userId: string): Promise<Student | undefined>;
   createStudent(data: Omit<Student, 'id' | 'createdAt' | 'updatedAt'>): Promise<Student>;
+  createStudentsBatch(rows: Omit<Student, 'id' | 'createdAt' | 'updatedAt'>[], idsOut: string[]): Promise<Student[]>;
   updateStudent(id: string, data: Partial<Omit<Student, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Student | null>;
   deleteStudent(id: string): Promise<boolean>;
   toggleDebt(id: string): Promise<Student | null>;
@@ -204,6 +205,10 @@ export async function getStudentByUserId(...args: Parameters<DbModule['getStuden
 }
 export async function createStudent(...args: Parameters<DbModule['createStudent']>) {
   return (await getDbModule()).createStudent(...args);
+}
+
+export async function createStudentsBatch(...args: Parameters<DbModule['createStudentsBatch']>) {
+  return (await getDbModule()).createStudentsBatch(...args);
 }
 export async function updateStudent(...args: Parameters<DbModule['updateStudent']>) {
   return (await getDbModule()).updateStudent(...args);
