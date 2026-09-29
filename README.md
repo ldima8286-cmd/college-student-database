@@ -121,7 +121,7 @@
 
 ## Требования
 
-- Node.js 22 LTS (для разработки и тестов — не ниже 22.19, этого требует `undici` в связке с `jsdom`)
+- Node.js 22 LTS, ветка 22 не ниже **22.22.2**: именно такую версию требует `jsdom@30` как движок для своей ветки `^22`
 - npm 10+
 - Docker Desktop (опционально, для продакшен-запуска)
 
@@ -194,8 +194,9 @@ Windows: можно использовать скрипт `start.bat` — он �
 | `PORT` | `5000` | Порт HTTP-сервера |
 | `NODE_ENV` | `development` | `development` / `production` / `test` |
 | `DATABASE_URL` | `sqlite:./database.sqlite` | SQLite-файл или PostgreSQL URL (`postgresql://user:pass@host:5432/db`) |
-| `JWT_SECRET` | `dev-secret-change-in-production` | Секрет подписи access-токенов |
-| `REFRESH_TOKEN_SECRET` | `refresh-secret-change-in-production` | Секрет подписи refresh-токенов |
+| `JWT_SECRET` | `dev-secret-change-in-production` | Секрет подписи access-токенов. В `production` обязателен, минимум 32 символа, значение для разработки отвергается |
+| `REFRESH_TOKEN_SECRET` | `refresh-secret-change-in-production` | Секрет подписи refresh-токенов. Те же требования, что к `JWT_SECRET` |
+| `RESET_TOKEN_SECRET` | `reset-secret-change-in-production` | Секрет подписи токенов сброса пароля. Те же требования |
 | `ADMIN_EMAIL` | `admin@college.local` | Email администратора (создаётся при первом запуске) |
 | `ADMIN_PASSWORD` | `admin123` | Пароль администратора |
 | `USER_EMAIL` | `user@college.local` | Email пользователя |
@@ -288,18 +289,30 @@ docker compose up -d --build
 | `nginx` | 80/443 | Статика (`frontend/dist`) + проксирование `/api` |
 | `redis` | 6379 | Redis 7 (для кэша/очередей) |
 
-Перед запуском задайте переменные, используемые в `docker-compose.yml`:
+Перед запуском задайте переменные, используемые в `docker-compose.yml`. В
+`production` все три секрета обязательны: приложение не стартует с dev-значениями
+или секретами короче 32 символов.
 
 ```bash
-export JWT_SECRET=your-strong-secret
+gen_secret() { node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"; }
+export JWT_SECRET=$(gen_secret)
+export REFRESH_TOKEN_SECRET=$(gen_secret)
+export RESET_TOKEN_SECRET=$(gen_secret)
 export ADMIN_PASSWORD=your-admin-password
 ```
+
+Итоговый контейнер работает от непривилегированного пользователя `app`, поэтому
+монтировать в него каталоги с правами root не нужно.
 
 ### Сборка образа вручную
 
 ```bash
 docker build -t college-student-database .
-docker run -p 5000:5000 -e JWT_SECRET=... college-student-database
+docker run -p 5000:5000 \
+  -e JWT_SECRET="$(gen_secret)" \
+  -e REFRESH_TOKEN_SECRET="$(gen_secret)" \
+  -e RESET_TOKEN_SECRET="$(gen_secret)" \
+  college-student-database
 ```
 
 Мультистейджинговая сборка (`Dockerfile`): образ собирает бэкенд и фронтенд отдельными стадиями, в итоговый контейнер попадают `backend/dist`, `backend/node_modules` (только production-зависимости) и `frontend/dist`.
@@ -368,13 +381,18 @@ cd backend && npm test
 # Фронтенд — юнит (Vitest + Testing Library)
 cd frontend && npm test
 
-# E2E (Playwright) — требует запущенных серверов
-cd frontend && npm run e2e
+# E2E (Playwright) — серверы поднимаются автоматически
+cd frontend && npx playwright install chromium   # один раз
+npm run e2e
 ```
 
-- Тесты бэкенда: `backend/src/routes.test.ts` (health, CRUD, авторизация).
-- Тесты фронтенда: `frontend/src/__tests__/` (`Login`, `StatsPanel`, `api`).
-- E2E-сценарий: `frontend/e2e/app.spec.ts`.
+- Тесты бэкенда: `backend/src/routes.test.ts` (health, CRUD, авторизация,
+  изоляция групп, отсутствие `passwordHash` в ответах, массовый импорт).
+- Тесты фронтенда: `frontend/src/__tests__/` (`Login`, `StatsPanel`, `api`,
+  `PublicShowcase`).
+- E2E-сценарий: `frontend/e2e/app.spec.ts`. Playwright сам поднимает серверы
+  (или переиспользует уже запущенные), браузеры ставятся один раз:
+  `npx playwright install chromium`.
 
 ---
 
