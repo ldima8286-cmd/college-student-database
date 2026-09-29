@@ -1,4 +1,14 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+/**
+ * Учётная запись, которую возвращает getUserById. Меняется в тестах доступа,
+ * чтобы проверить fail-closed поведение куратора без группы.
+ */
+// По умолчанию запросы приходят от куратора группы ПО-507: requireAdminOrCurator
+// в моке выставляет роль curator, и проверка группы должна её найти.
+const currentUser: { id: string; email: string; role: string; group?: string | null } = {
+  id: 'cur1', email: 'curator@college.local', role: 'curator', group: 'ПО-507',
+};
 
 vi.mock('./db.js', () => ({
   getAllStudents: vi.fn().mockResolvedValue({ students: [], total: 0 }),
@@ -14,7 +24,7 @@ vi.mock('./db.js', () => ({
   getStudentsByCourse: vi.fn().mockResolvedValue([]),
   getRecentStudents: vi.fn().mockResolvedValue([]),
   findUserByEmail: vi.fn().mockResolvedValue(undefined),
-  getUserById: vi.fn().mockResolvedValue({ id: '1', email: 'admin@college.local', role: 'admin' }),
+  getUserById: vi.fn(async () => ({ ...currentUser })),
   createUser: vi.fn().mockResolvedValue({ id: '2', email: 'new@college.local', role: 'user' }),
   getAllUsers: vi.fn().mockResolvedValue([]),
   updateUser: vi.fn().mockResolvedValue({ id: '1' }),
@@ -50,20 +60,24 @@ vi.mock('./db.js', () => ({
 
 vi.mock('./auth.js', () => ({
   authenticate: vi.fn().mockResolvedValue({ accessToken: 'acc', refreshToken: 'ref', role: 'admin' }),
+  // Роль и пользователь берутся из currentUser, чтобы тесты могли выставить
+  // конкретного актора (админ, куратор группы, куратор без группы).
   requireAuth: vi.fn((req: any, _res: any, next: any) => {
-    req.auth = { userId: '1', email: 'admin@college.local', role: 'admin' };
+    req.auth = { userId: currentUser.id, email: currentUser.email, role: currentUser.role };
     next();
   }),
   requireAdmin: vi.fn((req: any, _res: any, next: any) => {
-    req.auth = { userId: '1', email: 'admin@college.local', role: 'admin' };
+    req.auth = { userId: currentUser.id, email: currentUser.email, role: currentUser.role };
     next();
   }),
   requireAdminOrCurator: vi.fn((req: any, _res: any, next: any) => {
-    req.auth = { userId: '1', email: 'curator@college.local', role: 'curator' };
+    req.auth = { userId: currentUser.id, email: currentUser.email, role: currentUser.role };
     next();
   }),
   requireCsrf: vi.fn((_req: any, _res: any, next: any) => next()),
   getAuthInfo: vi.fn(() => ({ role: 'admin', authenticated: true })),
+  normalizeRole: vi.fn((role?: string | null) =>
+    role === 'admin' || role === 'curator' || role === 'user' ? role : 'user'),
   hashPassword: vi.fn(async (p: string) => p),
   comparePassword: vi.fn(async () => true),
   signAccessToken: vi.fn(() => 'test-token'),
@@ -117,6 +131,13 @@ app.use(express.json());
 app.use('/api', router);
 
 describe('API Routes', () => {
+  beforeEach(() => {
+    currentUser.id = 'cur1';
+    currentUser.email = 'curator@college.local';
+    currentUser.role = 'curator';
+    currentUser.group = 'ПО-507';
+  });
+
   describe('GET /api/health', () => {
     it('returns ok status', async () => {
       const res = await request(app).get('/api/health');
@@ -144,12 +165,13 @@ describe('API Routes', () => {
   });
 
   describe('GET /api/public/stats', () => {
-    it('returns public stats without auth', async () => {
+    it('returns only aggregate stats without auth', async () => {
       const res = await request(app).get('/api/public/stats');
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data.stats).toBeDefined();
-      expect(res.body.data.recent).toEqual([]);
+      // Список студентов с ФИО не должен попадать в неаутентифицированный ответ
+      expect(res.body.data.recent).toBeUndefined();
     });
   });
 
@@ -322,10 +344,123 @@ describe('API Routes', () => {
     });
 
     it('forbids changing own role', async () => {
+      currentUser.role = 'admin';
       const res = await request(app)
-        .put('/api/admin/users/1')
+        .put(`/api/admin/users/${currentUser.id}`)
         .send({ role: 'curator' });
       expect(res.status).toBe(400);
+    });
+
+    it('never returns passwordHash', async () => {
+      const { updateUserRoleAndGroup } = await import('./db.js');
+      (updateUserRoleAndGroup as any).mockResolvedValueOnce({
+        id: '2', email: 'u@college.local', fullName: 'U', role: 'curator',
+        group: 'ПО-507', avatar: null, phone: null, createdAt: '2026-01-01',
+        passwordHash: '$2a$10$hashedvalue',
+      });
+      const res = await request(app)
+        .put('/api/admin/users/2')
+        .send({ role: 'curator', group: 'ПО-507' });
+      expect(res.status).toBe(200);
+      expect(res.body.data.passwordHash).toBeUndefined();
+      expect(JSON.stringify(res.body)).not.toContain('hashedvalue');
+    });
+  });
+
+  describe('PUT /api/auth/me', () => {
+    it('never returns passwordHash after profile update', async () => {
+      const { updateUser } = await import('./db.js');
+      (updateUser as any).mockResolvedValueOnce({
+        id: 'u1', email: 'u@college.local', fullName: 'U', role: 'user',
+        avatar: null, phone: null, group: 'ПО-507', createdAt: '2026-01-01',
+        passwordHash: '$2a$10$hashedvalue',
+      });
+      const res = await request(app)
+        .put('/api/auth/me')
+        .send({ fullName: 'Ульянов Даниил', phone: '+375 (29) 123-45-67' });
+      expect(res.status).toBe(200);
+      expect(res.body.data.passwordHash).toBeUndefined();
+      expect(JSON.stringify(res.body)).not.toContain('hashedvalue');
+    });
+  });
+
+  describe('group isolation (fail-closed)', () => {
+    it('hides other groups from the student list for a curator', async () => {
+      const { getAllStudents } = await import('./db.js');
+      const res = await request(app).get('/api/students');
+      expect(res.status).toBe(200);
+      expect((getAllStudents as any).mock.calls.at(-1)?.[8]).toBe('ПО-507');
+    });
+
+    it('returns an empty scope for a curator without a group instead of all students', async () => {
+      currentUser.group = null;
+      const { getAllStudents } = await import('./db.js');
+      const res = await request(app).get('/api/students');
+      expect(res.status).toBe(200);
+      const filter = (getAllStudents as any).mock.calls.at(-1)?.[8];
+      expect(filter).not.toBeUndefined();
+      expect(filter).not.toBe('ПО-507');
+    });
+
+    it('forbids a curator without a group from creating a schedule entry', async () => {
+      currentUser.group = null;
+      const res = await request(app)
+        .post('/api/schedule')
+        .send({ group: 'ПО-507', dayOfWeek: 1, lessonNumber: 1, subject: 'Математика' });
+      expect(res.status).toBe(403);
+    });
+
+    it('forbids a curator without a group from writing marks', async () => {
+      currentUser.group = null;
+      const { getStudentById } = await import('./db.js');
+      (getStudentById as any).mockResolvedValueOnce({ id: 'st1', group: 'ПО-507', status: 'approved' });
+      const res = await request(app)
+        .post('/api/students/st1/marks')
+        .send({ subjectId: '11111111-1111-1111-1111-111111111111', mark: 5 });
+      expect(res.status).toBe(403);
+    });
+
+    it('forbids a curator from reading a schedule of another group', async () => {
+      const { getJournalLesson } = await import('./db.js');
+      (getJournalLesson as any).mockResolvedValueOnce({
+        id: 'sch1', group: 'ПО-508', dayOfWeek: 1, lessonNumber: 1,
+        subject: 'Математика', students: [],
+      });
+      const res = await request(app).get('/api/journal/sch1?date=2026-09-01');
+      expect(res.status).toBe(403);
+    });
+
+    it('forbids a curator from editing a schedule entry of another group', async () => {
+      const { getSchedule } = await import('./db.js');
+      (getSchedule as any).mockResolvedValueOnce([{
+        id: 'sch1', group: 'ПО-508', dayOfWeek: 1, lessonNumber: 1, subject: 'Математика',
+      }]);
+      const res = await request(app)
+        .put('/api/schedule/sch1')
+        .send({ subject: 'Физика' });
+      expect(res.status).toBe(403);
+    });
+
+    it('allows a curator to read a schedule of their own group', async () => {
+      const { getJournalLesson } = await import('./db.js');
+      (getJournalLesson as any).mockResolvedValueOnce({
+        id: 'sch1', group: 'ПО-507', dayOfWeek: 1, lessonNumber: 1, subject: 'Математика', students: [],
+      });
+      const res = await request(app).get('/api/journal/sch1?date=2026-09-01');
+      expect(res.status).toBe(200);
+    });
+  });
+
+  describe('GET /api/students/recent', () => {
+    it('returns only students visible to the actor', async () => {
+      const { getRecentStudents } = await import('./db.js');
+      (getRecentStudents as any).mockResolvedValueOnce([
+        { id: 's1', fullName: 'Свой', group: 'ПО-507', status: 'approved' },
+        { id: 's2', fullName: 'Чужой', group: 'ПО-508', status: 'approved' },
+      ]);
+      const res = await request(app).get('/api/students/recent');
+      expect(res.status).toBe(200);
+      expect(res.body.data.map((s: any) => s.id)).toEqual(['s1']);
     });
   });
 });

@@ -137,10 +137,28 @@ sqliteDb.exec(`
 export const rawDb: DatabaseType = sqliteDb;
 
 export async function ensureSchema(): Promise<void> {
+  try {
+    runMigrations();
+  } finally {
+    // PRAGMA не меняется при исключении в середине миграции — иначе
+    // приложение остаётся с отключёнными внешними ключами.
+    sqliteDb.pragma('foreign_keys = ON');
+  }
+}
+
+function runMigrations(): void {
+  const rebuild = (sql: string) => {
+    // Пересоздание таблицы должно быть атомарным: иначе падение посреди
+    // последовательности DROP/CREATE оставляет схему без исходных данных.
+    sqliteDb.transaction(() => {
+      sqliteDb.exec(sql);
+    })();
+  };
+
   const studentsSql = (sqliteDb.prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name='students'`).get() as any)?.sql ?? '';
   if (studentsSql.includes('performance <= 5') || studentsSql.includes('performance BETWEEN 0 AND 5')) {
     sqliteDb.pragma('foreign_keys = OFF');
-    sqliteDb.exec(`
+    rebuild(`
       CREATE TABLE students_new (
         id TEXT PRIMARY KEY,
         fullName TEXT NOT NULL,
@@ -162,12 +180,11 @@ export async function ensureSchema(): Promise<void> {
       DROP TABLE students;
       ALTER TABLE students_new RENAME TO students;
     `);
-    sqliteDb.pragma('foreign_keys = ON');
   }
   const marksSql = (sqliteDb.prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name='marks'`).get() as any)?.sql ?? '';
   if (marksSql.includes('mark <= 5') || marksSql.includes('mark BETWEEN 1 AND 5')) {
     sqliteDb.pragma('foreign_keys = OFF');
-    sqliteDb.exec(`
+    rebuild(`
       CREATE TABLE marks_new (
         id TEXT PRIMARY KEY,
         studentId TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
@@ -182,7 +199,6 @@ export async function ensureSchema(): Promise<void> {
       DROP TABLE marks;
       ALTER TABLE marks_new RENAME TO marks;
     `);
-    sqliteDb.pragma('foreign_keys = ON');
   }
   const markCols = sqliteDb.prepare(`PRAGMA table_info(marks)`).all() as any[];
   if (!markCols.some((c: any) => c.name === 'scheduleId')) {
@@ -194,7 +210,7 @@ export async function ensureSchema(): Promise<void> {
   const scheduleSql = (sqliteDb.prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name='schedule'`).get() as any)?.sql ?? '';
   if (scheduleSql.includes('dayOfWeek >= 1 AND dayOfWeek <= 7')) {
     sqliteDb.pragma('foreign_keys = OFF');
-    sqliteDb.exec(`
+    rebuild(`
       CREATE TABLE schedule_new (
         id TEXT PRIMARY KEY,
         "group" TEXT NOT NULL,
@@ -212,7 +228,6 @@ export async function ensureSchema(): Promise<void> {
       DROP TABLE schedule;
       ALTER TABLE schedule_new RENAME TO schedule;
     `);
-    sqliteDb.pragma('foreign_keys = ON');
   }
   const schedCols = sqliteDb.prepare(`PRAGMA table_info(schedule)`).all() as any[];
   if (!schedCols.some((c: any) => c.name === 'week')) {
