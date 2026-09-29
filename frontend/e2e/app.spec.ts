@@ -47,3 +47,23 @@ test('forgot password page opens from login', async ({ page }) => {
   await expect(page).toHaveURL(/forgot-password/);
   await expect(page.locator('text=Восстановление пароля')).toBeVisible();
 });
+test('public showcase hides the student list from anonymous visitors', async ({ page }) => {
+  await page.goto('/public');
+  await expect(page.locator('text=Открытая статистика колледжа')).toBeVisible();
+  await expect(page.locator('text=Доступно после входа')).toBeVisible();
+  await expect(page.locator('text=Недавно добавленные')).toBeVisible();
+});
+
+test('curator sees only their own group in the student list', async ({ page }) => {
+  await page.goto('/login');
+  await page.fill('input[type="email"]', 'curator@college.local');
+  await page.fill('input[type="password"]', 'curator123');
+  await page.click('button[type="submit"]');
+  await expect(page).toHaveURL('/');
+
+  const response = await page.request.get('/api/students?limit=100');
+  expect(response.ok()).toBeTruthy();
+  const body = await response.json();
+  const groups = [...new Set(body.data.map((s: any) => s.group))];
+  expect(groups).toEqual(['ПО-507']);
+});
