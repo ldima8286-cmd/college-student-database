@@ -27,10 +27,27 @@ function isPrivateIp(ip: string): boolean {
 }
 
 function isPrivateIpv6(ip: string): boolean {
-  const lower = ip.toLowerCase();
+  let lower = ip.toLowerCase();
+  if (lower.startsWith('[') && lower.endsWith(']')) lower = lower.slice(1, -1);
   if (lower === '::1' || lower === '::' || lower.startsWith('fe8') || lower.startsWith('fe9') || lower.startsWith('fea') || lower.startsWith('feb')) return true;
   if (lower.startsWith('fc') || lower.startsWith('fd')) return true;
   if (lower.startsWith('ff')) return true;
+
+  const mapped = lower.match(/^(?:::ffff:|0:0:0:0:0:ffff:)(.+)$/);
+  if (mapped) {
+    const rest = mapped[1];
+    if (net.isIPv4(rest)) return isPrivateIp(rest);
+    const groups = rest.split(':');
+    if (groups.length === 2) {
+      const hi = parseInt(groups[0], 16);
+      const lo = parseInt(groups[1], 16);
+      if (Number.isFinite(hi) && Number.isFinite(lo)) {
+        const ipv4 = `${(hi >> 8) & 255}.${hi & 255}.${(lo >> 8) & 255}.${lo & 255}`;
+        return isPrivateIp(ipv4);
+      }
+    }
+    return true;
+  }
   return false;
 }
 
