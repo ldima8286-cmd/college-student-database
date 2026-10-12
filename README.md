@@ -7,6 +7,7 @@
 ## Бейджи
 
 ![CI](https://github.com/ldima8286-cmd/college-student-database/actions/workflows/ci.yml/badge.svg)
+![License](https://img.shields.io/github/license/ldima8286-cmd/college-student-database)
 ![Node.js](https://img.shields.io/badge/Node.js-22-339933?style=flat-square&logo=node.js&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?style=flat-square&logo=typescript&logoColor=white)
 ![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black)
@@ -466,4 +467,6 @@ college-student-database/
 
 ## Лицензия
 
-Лицензия не указана. Перед публичным релизом добавьте файл `LICENSE` (например, MIT) и укажите его здесь.
+Проект распространяется под лицензией [MIT](LICENSE).
+
+Copyright (c) 2026 ldima8286-cmd
