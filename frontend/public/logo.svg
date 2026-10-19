@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="База данных учащихся">
+  <rect width="32" height="32" rx="7" fill="#464DA6"/>
+  <path d="M7.5 12.2 16 8.5l8.5 3.7L16 15.9 7.5 12.2Z" fill="#fff"/>
+  <path d="M11 15.1v3.9c0 .9 2.24 2.1 5 2.1s5-1.2 5-2.1v-3.9" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M23 12.6v4.4" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
+</svg>

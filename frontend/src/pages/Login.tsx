@@ -32,10 +32,10 @@ export default function Login() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary-100 dark:bg-primary-900/30 mb-4">
-            <GraduationCap className="w-8 h-8 text-primary-600 dark:text-primary-400" />
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-lg bg-primary-100 dark:bg-primary-900/30 mb-4">
+            <GraduationCap className="w-7 h-7 text-primary-600 dark:text-primary-400" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">База данных учащихся</h1>
+          <h1 className="font-serif text-2xl font-semibold text-gray-900 dark:text-white">База данных учащихся</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">Войдите для доступа к системе</p>
         </div>
 
@@ -48,10 +48,11 @@ export default function Login() {
           )}
 
           <div className="mb-4">
-            <label className="label">Email</label>
+            <label className="label" htmlFor="login-email">Email</label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
+                id="login-email"
                 type="email"
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); setError(''); }}
@@ -63,10 +64,11 @@ export default function Login() {
           </div>
 
           <div className="mb-4">
-            <label className="label">Пароль</label>
+            <label className="label" htmlFor="login-password">Пароль</label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
+                id="login-password"
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setError(''); }}
@@ -76,6 +78,7 @@ export default function Login() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}

@@ -44,9 +44,9 @@ export default memo(function ChartsPanel({ stats, view = 'course' }: Props) {
       <div className="flex items-end gap-3 h-52">
         {items.map((c) => (
           <div key={c.key} className="flex-1 flex flex-col items-center gap-1 h-full justify-end min-w-0">
-            <span className="text-xs font-bold text-primary-700 dark:text-primary-300">{c.avgPerformance.toFixed(1)}</span>
+            <span className="font-mono text-xs font-medium text-primary-700 dark:text-primary-300">{c.avgPerformance.toFixed(1)}</span>
             <div
-              className="w-full rounded-t-lg bg-gradient-to-t from-primary-600 to-primary-400 transition-all duration-300"
+              className="w-full rounded-t-sm bg-primary-500 transition-all duration-300"
               style={{ height: `${Math.min(100, (c.avgPerformance / maxPerf) * 100)}%` }}
             />
             <span className="text-xs text-gray-500 dark:text-gray-400 leading-tight w-full text-center break-words" title={c.label}>{c.label}</span>
@@ -64,9 +64,9 @@ export default memo(function ChartsPanel({ stats, view = 'course' }: Props) {
       <div className="flex items-end gap-3 h-52">
         {items.map((c) => (
           <div key={c.key} className="flex-1 flex flex-col items-center gap-1 h-full justify-end min-w-0">
-            <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">{c.avgAttendance}%</span>
+            <span className="font-mono text-xs font-medium text-emerald-700 dark:text-emerald-300">{c.avgAttendance}%</span>
             <div
-              className="w-full rounded-t-lg bg-gradient-to-t from-emerald-600 to-emerald-400 transition-all duration-300"
+              className="w-full rounded-t-sm bg-emerald-500 transition-all duration-300"
               style={{ height: `${Math.min(100, (c.avgAttendance / maxAtt) * 100)}%` }}
             />
             <span className="text-xs text-gray-500 dark:text-gray-400 leading-tight w-full text-center break-words" title={c.label}>{c.label}</span>
@@ -86,9 +86,9 @@ export default memo(function ChartsPanel({ stats, view = 'course' }: Props) {
         <div className="flex items-end gap-3 h-52">
           {items.map((c) => (
             <div key={c.key} className="flex-1 flex flex-col items-center gap-1 h-full justify-end min-w-0">
-              <span className="text-xs font-bold text-amber-700 dark:text-amber-300">{c.count}</span>
+              <span className="font-mono text-xs font-medium text-amber-700 dark:text-amber-300">{c.count}</span>
               <div
-                className="w-full rounded-t-lg bg-gradient-to-t from-amber-600 to-amber-400 transition-all duration-300"
+                className="w-full rounded-t-sm bg-amber-500 transition-all duration-300"
                 style={{ height: `${Math.min(100, (c.count / maxCount) * 100)}%` }}
               />
               <span className="text-xs text-gray-500 dark:text-gray-400 leading-tight w-full text-center break-words" title={c.label}>{c.label}</span>

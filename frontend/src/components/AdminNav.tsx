@@ -26,7 +26,7 @@ export default function AdminNav() {
           <div className="flex items-center gap-2 min-w-0">
             <Link to="/admin" className="hidden sm:flex items-center gap-2 flex-shrink-0">
               <Shield className="w-6 h-6 text-primary-600" />
-              <span className="text-lg font-bold text-gray-900 dark:text-white hidden md:inline">Админ-панель</span>
+              <span className="font-serif text-lg font-semibold text-gray-900 dark:text-white hidden md:inline">Админ-панель</span>
             </Link>
             <nav className="hidden md:flex items-center gap-1">
               {LINKS.map((l) => (

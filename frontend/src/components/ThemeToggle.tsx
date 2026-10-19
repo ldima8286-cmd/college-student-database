@@ -19,7 +19,8 @@ export default function ThemeToggle() {
   return (
     <button
       onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-      className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+      className="p-2 rounded-md bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+      aria-label={theme === 'light' ? 'Включить тёмную тему' : 'Включить светлую тему'}
       title={theme === 'light' ? 'Тёмная тема' : 'Светлая тема'}
     >
       {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}

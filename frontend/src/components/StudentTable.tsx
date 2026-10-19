@@ -74,6 +74,7 @@ export default memo(function StudentTable({ students, sortBy, sortOrder, onSort,
                       onChange={() => onToggleSelect?.(student.id)}
                       onClick={(e) => e.stopPropagation()}
                       className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 accent-primary-600 cursor-pointer"
+                      aria-label={`Выбрать ${student.fullName}`}
                       title="Выбрать для групповых действий"
                     />
                   </td>
@@ -106,19 +107,22 @@ export default memo(function StudentTable({ students, sortBy, sortOrder, onSort,
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
                       <button onClick={() => onToggleDebt(student)}
-                        className="p-1.5 rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
+                        className="p-1.5 rounded-md transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
+                        aria-label={student.academicDebt ? 'Снять задолженность' : 'Добавить задолженность'}
                         title={student.academicDebt ? 'Снять задолженность' : 'Добавить задолженность'}>
                         {student.academicDebt
                           ? <CheckCircle className="w-4 h-4 text-emerald-600" />
                           : <AlertTriangle className="w-4 h-4 text-amber-500" />}
                       </button>
                       <button onClick={() => onEdit(student)}
-                        className="p-1.5 rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500"
+                        className="p-1.5 rounded-md transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500"
+                        aria-label="Редактировать"
                         title="Редактировать">
                         <Pencil className="w-4 h-4" />
                       </button>
                       <button onClick={() => onDelete(student)}
-                        className="p-1.5 rounded-lg transition-colors hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600"
+                        className="p-1.5 rounded-md transition-colors hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600"
+                        aria-label="Удалить"
                         title="Удалить">
                         <Trash2 className="w-4 h-4" />
                       </button>

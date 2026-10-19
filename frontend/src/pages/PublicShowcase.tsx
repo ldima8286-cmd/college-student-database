@@ -33,21 +33,28 @@ export default function PublicShowcase() {
   const stats = data?.stats;
   const maxCourse = Math.max(1, ...(data?.byCourse ?? []).map((c: any) => c.count));
 
+  const cards = [
+    { icon: Users, label: 'Студентов учтено', value: stats?.total ?? 0, color: 'text-primary-600 dark:text-primary-400' },
+    { icon: TrendingUp, label: 'Средняя успеваемость', value: stats?.avgPerformance?.toFixed(2) ?? '0.00', color: 'text-emerald-600 dark:text-emerald-400' },
+    { icon: BookOpen, label: 'Средняя посещаемость', value: `${stats?.avgAttendance ?? 0}%`, color: 'text-amber-600 dark:text-amber-400' },
+    { icon: Award, label: 'С задолженностью', value: stats?.withDebt ?? 0, color: 'text-red-600 dark:text-red-400' },
+  ];
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-      <header className="bg-gradient-to-r from-primary-600 to-primary-500 text-white sticky top-0 z-40 shadow-md">
+      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-2 min-h-16 py-2">
             <div className="flex items-center gap-3 min-w-0">
-              <GraduationCap className="w-7 h-7 flex-shrink-0" />
-              <h1 className="text-lg sm:text-xl font-bold truncate">База данных учащихся</h1>
+              <GraduationCap className="w-6 h-6 text-primary-600 flex-shrink-0" />
+              <h1 className="font-serif text-lg sm:text-xl font-semibold text-gray-900 dark:text-white truncate">База данных учащихся</h1>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               <ThemeToggle />
-              <Link to="/login" className="btn bg-white/15 hover:bg-white/25 text-white text-sm flex items-center gap-1">
+              <Link to="/login" className="btn btn-ghost text-sm flex items-center gap-1">
                 <LogIn className="w-4 h-4" /> <span className="hidden sm:inline">Войти</span>
               </Link>
-              <Link to="/register" className="btn bg-white text-primary-700 hover:bg-gray-100 text-sm flex items-center gap-1">
+              <Link to="/register" className="btn btn-primary text-sm flex items-center gap-1">
                 <UserPlus className="w-4 h-4" /> <span className="hidden sm:inline">Регистрация</span>
               </Link>
             </div>
@@ -57,7 +64,7 @@ export default function PublicShowcase() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="text-center mb-10">
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-3">
+          <h2 className="font-serif text-3xl font-semibold tracking-tight text-gray-900 dark:text-white mb-3">
             Открытая статистика колледжа
           </h2>
           <p className="text-gray-500 dark:text-gray-400 max-w-2xl mx-auto">
@@ -83,61 +90,33 @@ export default function PublicShowcase() {
 
         {data && !error && (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-              <div className="card flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-primary-100 dark:bg-primary-900/30">
-                  <Users className="w-6 h-6 text-primary-600 dark:text-primary-400" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats?.total ?? 0}</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Студентов учтено</p>
-                </div>
-              </div>
-              <div className="card flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-green-100 dark:bg-green-900/30">
-                  <TrendingUp className="w-6 h-6 text-green-600 dark:text-green-400" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {stats?.avgPerformance?.toFixed(2) ?? '0.00'}
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Средняя успеваемость</p>
-                </div>
-              </div>
-              <div className="card flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-amber-100 dark:bg-amber-900/30">
-                  <BookOpen className="w-6 h-6 text-amber-600 dark:text-amber-400" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats?.avgAttendance ?? 0}%</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Средняя посещаемость</p>
-                </div>
-              </div>
-              <div className="card flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-red-100 dark:bg-red-900/30">
-                  <Award className="w-6 h-6 text-red-600 dark:text-red-400" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats?.withDebt ?? 0}</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">С задолженностью</p>
-                </div>
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-200 dark:bg-gray-700 overflow-hidden mb-10">
+              {cards.map((c) => {
+                const Icon = c.icon;
+                return (
+                  <div key={c.label} className="bg-white dark:bg-gray-800 p-5">
+                    <Icon className={`w-5 h-5 mb-3 ${c.color}`} />
+                    <p className="font-mono text-2xl font-semibold text-gray-900 dark:text-white">{c.value}</p>
+                    <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">{c.label}</p>
+                  </div>
+                );
+              })}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
               <div className="card">
-                <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-4">Студенты по курсам</h3>
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-4">Студенты по курсам</h3>
                 {(data.byCourse ?? []).length === 0 ? (
                   <p className="text-sm text-gray-400">Нет данных</p>
                 ) : (
                   <div className="space-y-3">
                     {(data.byCourse ?? []).map((c: any) => (
                       <div key={c.course} className="flex items-center gap-3">
-                        <span className="w-10 text-sm text-gray-500 dark:text-gray-400">{c.course} курс</span>
-                        <div className="flex-1 bg-gray-100 dark:bg-gray-700 rounded-full h-4 overflow-hidden">
-                          <div className="h-full bg-primary-500 rounded-full" style={{ width: `${(c.count / maxCourse) * 100}%` }} />
+                        <span className="w-12 text-sm text-gray-500 dark:text-gray-400">{c.course} курс</span>
+                        <div className="flex-1 bg-gray-100 dark:bg-gray-700 rounded-sm h-3 overflow-hidden">
+                          <div className="h-full bg-primary-500 rounded-sm" style={{ width: `${(c.count / maxCourse) * 100}%` }} />
                         </div>
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300 w-16 text-right">{c.count}</span>
+                        <span className="font-mono text-sm font-medium text-gray-700 dark:text-gray-300 w-12 text-right">{c.count}</span>
                       </div>
                     ))}
                   </div>
@@ -145,7 +124,7 @@ export default function PublicShowcase() {
               </div>
 
               <div className="card">
-                <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-4">Недавно добавленные</h3>
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-4">Недавно добавленные</h3>
                 {recent.length === 0 ? (
                   <p className="text-sm text-gray-400">
                     {isAuthenticated() ? 'Нет данных' : 'Доступно после входа'}
@@ -153,14 +132,14 @@ export default function PublicShowcase() {
                 ) : (
                   <ul className="divide-y divide-gray-100 dark:divide-gray-700">
                     {recent.map((s: any) => (
-                      <li key={s.id} className="py-2.5 flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">{s.fullName}</p>
+                      <li key={s.id} className="py-2.5 flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{s.fullName}</p>
                           <p className="text-xs text-gray-500 dark:text-gray-400">{s.course} курс · {s.group} · {s.specialty}</p>
                         </div>
-                        <div className="text-right text-xs text-gray-500 dark:text-gray-400">
-                          <p>Успеваемость: {Number(s.performance).toFixed(2)}</p>
-                          <p>Посещаемость: {s.attendance}%</p>
+                        <div className="text-right text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+                          <p className="font-mono">Успеваемость: {Number(s.performance).toFixed(2)}</p>
+                          <p className="font-mono">Посещаемость: {s.attendance}%</p>
                         </div>
                       </li>
                     ))}

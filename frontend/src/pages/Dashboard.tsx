@@ -115,7 +115,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between gap-2 min-h-16 py-2">
             <div className="flex items-center gap-3 min-w-0">
               <GraduationCap className="w-7 h-7 text-primary-600 flex-shrink-0" />
-              <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">
+              <h1 className="font-serif text-lg sm:text-xl font-semibold text-gray-900 dark:text-white truncate">
                 База данных учащихся
               </h1>
               <span className={`hidden sm:inline-flex px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${
