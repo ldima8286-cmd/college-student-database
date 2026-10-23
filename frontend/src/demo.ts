@@ -721,7 +721,9 @@ async function route(
   }
 
   if (method === 'get' && url === '/groups') {
-    const groups = [...new Set(students.map((s) => s.group))].sort((a, b) => a.localeCompare(b, 'ru'));
+    const groups = [...new Set(students.map((s) => s.group).filter(Boolean))];
+    if (groups.length === 0) groups.push('ИС-21', 'ПО-507', 'ТО-31');
+    groups.sort((a, b) => String(a).localeCompare(String(b), 'ru'));
     return ok(config, groups);
   }
 
