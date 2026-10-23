@@ -26,7 +26,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   </React.StrictMode>
 );
 
-if ('serviceWorker' in navigator && import.meta.env.PROD && !IS_LOCALHOST) {
+if ('serviceWorker' in navigator && import.meta.env.PROD && !IS_LOCALHOST && (import.meta.env as { VITE_DEMO?: string }).VITE_DEMO !== 'true') {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).catch(() => {});
 

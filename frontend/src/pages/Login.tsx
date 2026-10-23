@@ -120,7 +120,16 @@ export default function Login() {
         </p>
 
         <div className="mt-4 p-3 rounded-lg bg-gray-100 dark:bg-gray-800 text-xs text-gray-500 space-y-1">
-          <p>Для регистрации нового аккаунта перейдите по ссылке выше.</p>
+          {(import.meta.env as { VITE_DEMO?: string }).VITE_DEMO === 'true' ? (
+            <>
+              <p className="font-medium text-gray-600 dark:text-gray-300">Демо-аккаунты (пароль любой):</p>
+              <p><span className="font-mono">admin@college.local</span> — администратор</p>
+              <p><span className="font-mono">curator@college.local</span> — куратор</p>
+              <p><span className="font-mono">user@college.local</span> — студент</p>
+            </>
+          ) : (
+            <p>Для регистрации нового аккаунта перейдите по ссылке выше.</p>
+          )}
         </div>
       </div>
     </div>

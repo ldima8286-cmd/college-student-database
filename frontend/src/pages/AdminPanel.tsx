@@ -162,7 +162,7 @@ export default function AdminPanel() {
   const handleLogout = async () => {
     await logout();
     toast.success('Вы вышли');
-    window.location.href = '/login';
+    window.location.href = `${import.meta.env.BASE_URL}login`;
   };
 
   const handleBatchDelete = async (ids: string[]) => {

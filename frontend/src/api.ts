@@ -1,5 +1,6 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { Student, StudentStatus, PaginatedResponse, StudentStats, ApiResponse, Role, Subject, ScheduleEntry, ScheduleWeek, MarkRecord, AdminUser, AttendanceStatus, JournalLesson, JournalSummaryLesson, Settings } from './types';
+import { installDemo } from './demo';
 
 export type { Role };
 
@@ -10,6 +11,10 @@ const api = axios.create({
   timeout: 10000,
   withCredentials: true,
 });
+
+if ((import.meta.env as { VITE_DEMO?: string }).VITE_DEMO === 'true') {
+  installDemo(api);
+}
 
 export function getCookie(name: string): string | undefined {
   if (typeof document === 'undefined') return undefined;
@@ -56,8 +61,8 @@ export async function tryRefresh(): Promise<boolean> {
 
 function handleSessionExpired(): void {
   clearLocalCookies();
-  if (window.location.pathname !== '/login') {
-    window.location.href = '/login';
+  if (window.location.pathname !== `${import.meta.env.BASE_URL}login`) {
+    window.location.href = `${import.meta.env.BASE_URL}login`;
   }
 }
 
